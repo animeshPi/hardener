@@ -1,0 +1,76 @@
+os: windows
+policies:
+  - id: "WIN-1.a.i"
+    title: "Enforce password history: 24 or more passwords"
+    category: "Account Policies"
+    subcategory: "Password Policy"
+    severity: high
+    levels: ["basic", "moderate", "strict"]
+    tags: ["auth-basics", "password"]
+    check:
+      kind: powershell
+      timeout: 60
+      script: |
+        $e=24; secedit /export /cfg $env:TEMP\secpol.cfg|Out-Null; $v=(Get-Content "$env:TEMP\secpol.cfg"|%{if($_ -match '^PasswordHistorySize\s*=\s*(\d+)'){[int]$Matches[1]}}|Select-Object -First 1); if(-not $v){$v=0}; [pscustomobject]@{compliant=($v -ge $e);current=$v;expected=$e;details="PasswordHistorySize=$v"}|ConvertTo-Json -Compress
+    snapshot:
+      kind: powershell
+      script: |
+        secedit /export /cfg $env:TEMP\secpol.cfg|Out-Null; $v=(Get-Content "$env:TEMP\secpol.cfg"|%{if($_ -match '^PasswordHistorySize\s*=\s*(\d+)'){[int]$Matches[1]}}|Select-Object -First 1); if(-not $v){$v=0}; [pscustomobject]@{PasswordHistorySize=$v}|ConvertTo-Json -Compress
+    remediate:
+      kind: powershell
+      script: |
+        $e=24; $p="$env:TEMP\secpol.inf"; Set-Content -Path $p -Encoding ASCII -Value "[System Access]`nPasswordHistorySize=$e"; secedit /configure /db "$env:windir\security\local.sdb" /cfg $p /areas SECURITYPOLICY|Out-Null; [pscustomobject]@{success=$true;details="Set PasswordHistorySize=$e"}|ConvertTo-Json -Compress
+    rollback:
+      kind: powershell
+      script: |
+        $prev=(Get-Content -Raw)|ConvertFrom-Json; $v=[int]$prev.PasswordHistorySize; $p="$env:TEMP\secpol.inf"; Set-Content -Path $p -Encoding ASCII -Value "[System Access]`nPasswordHistorySize=$v"; secedit /configure /db "$env:windir\security\local.sdb" /cfg $p /areas SECURITYPOLICY|Out-Null; [pscustomobject]@{success=$true;details="Restored PasswordHistorySize=$v"}|ConvertTo-Json -Compress
+
+  - id: "WIN-1.a.ii"
+    title: "Maximum password age: 90 days or fewer, not 0"
+    category: "Account Policies"
+    subcategory: "Password Policy"
+    severity: high
+    levels: ["basic", "moderate", "strict"]
+    tags: ["password"]
+    check:
+      kind: powershell
+      timeout: 60
+      script: |
+        $e=90; secedit /export /cfg $env:TEMP\secpol.cfg|Out-Null; $v=(gc "$env:TEMP\secpol.cfg"|%{if($_ -match '^MaximumPasswordAge\s*=\s*(-?\d+)'){[int]$Matches[1]}}|select -first 1); if(-not $v){$v=0}; [pscustomobject]@{compliant=($v -le $e -and $v -ne 0);current=$v;expected="<=$e and !=0";details="MaximumPasswordAge=$v"}|ConvertTo-Json -Compress
+    snapshot:
+      kind: powershell
+      script: |
+        secedit /export /cfg $env:TEMP\secpol.cfg|Out-Null; $v=(gc "$env:TEMP\secpol.cfg"|%{if($_ -match '^MaximumPasswordAge\s*=\s*(-?\d+)'){[int]$Matches[1]}}|select -first 1); if(-not $v){$v=0}; [pscustomobject]@{MaximumPasswordAge=$v}|ConvertTo-Json -Compress
+    remediate:
+      kind: powershell
+      script: |
+        $e=90; $p="$env:TEMP\secpol.inf"; sc $p -Encoding ASCII "[System Access]`nMaximumPasswordAge=$e"; secedit /configure /db "$env:windir\security\local.sdb" /cfg $p /areas SECURITYPOLICY|Out-Null; [pscustomobject]@{success=$true;details="Set MaximumPasswordAge=$e"}|ConvertTo-Json -Compress
+    rollback:
+      kind: powershell
+      script: |
+        $prev=(gc -raw -enc UTF8 -)|ConvertFrom-Json; $v=[int]$prev.MaximumPasswordAge; $p="$env:TEMP\secpol.inf"; sc $p -Encoding ASCII "[System Access]`nMaximumPasswordAge=$v"; secedit /configure /db "$env:windir\security\local.sdb" /cfg $p /areas SECURITYPOLICY|Out-Null; [pscustomobject]@{success=$true;details="Restored MaximumPasswordAge=$v"}|ConvertTo-Json -Compress
+
+  - id: "WIN-1.a.iii"
+    title: "Minimum password age: 1 day or more"
+    category: "Account Policies"
+    subcategory: "Password Policy"
+    severity: high
+    levels: ["basic", "moderate", "strict"]
+    tags: ["password"]
+    check:
+      kind: powershell
+      timeout: 60
+      script: |
+        $e=1; secedit /export /cfg $env:TEMP\secpol.cfg|Out-Null; $v=(gc "$env:TEMP\secpol.cfg"|%{if($_ -match '^MinimumPasswordAge\s*=\s*(\d+)'){[int]$Matches[1]}}|select -first 1); if(-not $v){$v=0}; [pscustomobject]@{compliant=($v -ge $e);current=$v;expected=$e;details="MinimumPasswordAge=$v"}|ConvertTo-Json -Compress
+    snapshot:
+      kind: powershell
+      script: |
+        secedit /export /cfg $env:TEMP\secpol.cfg|Out-Null; $v=(gc "$env:TEMP\secpol.cfg"|%{if($_ -match '^MinimumPasswordAge\s*=\s*(\d+)'){[int]$Matches[1]}}|select -first 1); if(-not $v){$v=0}; [pscustomobject]@{MinimumPasswordAge=$v}|ConvertTo-Json -Compress
+    remediate:
+      kind: powershell
+      script: |
+        $e=1; $p="$env:TEMP\secpol.inf"; sc $p -Encoding ASCII "[System Access]`nMinimumPasswordAge=$e"; secedit /configure /db "$env:windir\security\local.sdb" /cfg $p /areas SECURITYPOLICY|Out-Null; [pscustomobject]@{success=$true;details="Set MinimumPasswordAge=$e"}|ConvertTo-Json -Compress
+    rollback:
+      kind: powershell
+      script: |
+        $prev=(gc -raw -)|ConvertFrom-Json; $v=[int]$prev.MinimumPasswordAge; $p="$env:TEMP\secpol.inf"; sc $p -Encoding ASCII "[System Access]`nMinimumPasswordAge=$v"; secedit /configure /db "$env:windir\security\local.sdb" /cfg $p /areas SECURITYPOLICY|Out-Null; [pscustomobject]@{success=$true;details="Restored MinimumPasswordAge=$v"}|ConvertTo-Json -Compress
