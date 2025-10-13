@@ -1,0 +1,453 @@
+os: windows
+policies:
+  # 1.a Password Policy
+  - id: "WIN-1.a.i"
+    title: "Enforce password history: 24 or more passwords"
+    category: "Account Policies"
+    subcategory: "Password Policy"
+    severity: high
+    levels: ["basic", "moderate", "strict"]
+    tags: ["auth-basics", "password"]
+    check:
+      kind: powershell
+      timeout: 60
+      script: |
+        $e=24; secedit /export /cfg $env:TEMP\secpol.cfg|Out-Null; $v=(Get-Content "$env:TEMP\secpol.cfg"|%{if($_ -match '^PasswordHistorySize\s*=\s*(\d+)'){[int]$Matches[1]}}|Select-Object -First 1); if(-not $v){$v=0}; [pscustomobject]@{compliant=($v -ge $e);current=$v;expected=$e;details="PasswordHistorySize=$v"}|ConvertTo-Json -Compress
+    snapshot:
+      kind: powershell
+      script: |
+        secedit /export /cfg $env:TEMP\secpol.cfg|Out-Null; $v=(Get-Content "$env:TEMP\secpol.cfg"|%{if($_ -match '^PasswordHistorySize\s*=\s*(\d+)'){[int]$Matches[1]}}|Select-Object -First 1); if(-not $v){$v=0}; [pscustomobject]@{PasswordHistorySize=$v}|ConvertTo-Json -Compress
+    remediate:
+      kind: powershell
+      script: |
+        $e=24; $p="$env:TEMP\secpol.inf"; Set-Content -Path $p -Encoding ASCII -Value "[System Access]`nPasswordHistorySize=$e"; secedit /configure /db "$env:windir\security\local.sdb" /cfg $p /areas SECURITYPOLICY|Out-Null; [pscustomobject]@{success=$true;details="Set PasswordHistorySize=$e"}|ConvertTo-Json -Compress
+    rollback:
+      kind: powershell
+      script: |
+        $prev=(Get-Content -Raw)|ConvertFrom-Json; $v=[int]$prev.PasswordHistorySize; $p="$env:TEMP\secpol.inf"; Set-Content -Path $p -Encoding ASCII -Value "[System Access]`nPasswordHistorySize=$v"; secedit /configure /db "$env:windir\security\local.sdb" /cfg $p /areas SECURITYPOLICY|Out-Null; [pscustomobject]@{success=$true;details="Restored PasswordHistorySize=$v"}|ConvertTo-Json -Compress
+
+  - id: "WIN-1.a.ii"
+    title: "Maximum password age: 90 days or fewer, not 0"
+    category: "Account Policies"
+    subcategory: "Password Policy"
+    severity: high
+    levels: ["basic", "moderate", "strict"]
+    tags: ["password"]
+    check:
+      kind: powershell
+      timeout: 60
+      script: |
+        $e=90; secedit /export /cfg $env:TEMP\secpol.cfg|Out-Null; $v=(gc "$env:TEMP\secpol.cfg"|%{if($_ -match '^MaximumPasswordAge\s*=\s*(-?\d+)'){[int]$Matches[1]}}|select -first 1); if(-not $v){$v=0}; [pscustomobject]@{compliant=($v -le $e -and $v -ne 0);current=$v;expected="<=$e and !=0";details="MaximumPasswordAge=$v"}|ConvertTo-Json -Compress
+    snapshot:
+      kind: powershell
+      script: |
+        secedit /export /cfg $env:TEMP\secpol.cfg|Out-Null; $v=(gc "$env:TEMP\secpol.cfg"|%{if($_ -match '^MaximumPasswordAge\s*=\s*(-?\d+)'){[int]$Matches[1]}}|select -first 1); if(-not $v){$v=0}; [pscustomobject]@{MaximumPasswordAge=$v}|ConvertTo-Json -Compress
+    remediate:
+      kind: powershell
+      script: |
+        $e=90; $p="$env:TEMP\secpol.inf"; sc $p -Encoding ASCII "[System Access]`nMaximumPasswordAge=$e"; secedit /configure /db "$env:windir\security\local.sdb" /cfg $p /areas SECURITYPOLICY|Out-Null; [pscustomobject]@{success=$true;details="Set MaximumPasswordAge=$e"}|ConvertTo-Json -Compress
+    rollback:
+      kind: powershell
+      script: |
+        $prev=(gc -raw -enc UTF8 -)|ConvertFrom-Json; $v=[int]$prev.MaximumPasswordAge; $p="$env:TEMP\secpol.inf"; sc $p -Encoding ASCII "[System Access]`nMaximumPasswordAge=$v"; secedit /configure /db "$env:windir\security\local.sdb" /cfg $p /areas SECURITYPOLICY|Out-Null; [pscustomobject]@{success=$true;details="Restored MaximumPasswordAge=$v"}|ConvertTo-Json -Compress
+
+  - id: "WIN-1.a.iii"
+    title: "Minimum password age: 1 day or more"
+    category: "Account Policies"
+    subcategory: "Password Policy"
+    severity: high
+    levels: ["basic", "moderate", "strict"]
+    tags: ["password"]
+    check:
+      kind: powershell
+      timeout: 60
+      script: |
+        $e=1; secedit /export /cfg $env:TEMP\secpol.cfg|Out-Null; $v=(gc "$env:TEMP\secpol.cfg"|%{if($_ -match '^MinimumPasswordAge\s*=\s*(\d+)'){[int]$Matches[1]}}|select -first 1); if(-not $v){$v=0}; [pscustomobject]@{compliant=($v -ge $e);current=$v;expected=$e;details="MinimumPasswordAge=$v"}|ConvertTo-Json -Compress
+    snapshot:
+      kind: powershell
+      script: |
+        secedit /export /cfg $env:TEMP\secpol.cfg|Out-Null; $v=(gc "$env:TEMP\secpol.cfg"|%{if($_ -match '^MinimumPasswordAge\s*=\s*(\d+)'){[int]$Matches[1]}}|select -first 1); if(-not $v){$v=0}; [pscustomobject]@{MinimumPasswordAge=$v}|ConvertTo-Json -Compress
+    remediate:
+      kind: powershell
+      script: |
+        $e=1; $p="$env:TEMP\secpol.inf"; sc $p -Encoding ASCII "[System Access]`nMinimumPasswordAge=$e"; secedit /configure /db "$env:windir\security\local.sdb" /cfg $p /areas SECURITYPOLICY|Out-Null; [pscustomobject]@{success=$true;details="Set MinimumPasswordAge=$e"}|ConvertTo-Json -Compress
+    rollback:
+      kind: powershell
+      script: |
+        $prev=(gc -raw -)|ConvertFrom-Json; $v=[int]$prev.MinimumPasswordAge; $p="$env:TEMP\secpol.inf"; sc $p -Encoding ASCII "[System Access]`nMinimumPasswordAge=$v"; secedit /configure /db "$env:windir\security\local.sdb" /cfg $p /areas SECURITYPOLICY|Out-Null; [pscustomobject]@{success=$true;details="Restored MinimumPasswordAge=$v"}|ConvertTo-Json -Compress
+
+  - id: "WIN-1.a.iv"
+    title: "Minimum password length: 12+ characters"
+    category: "Account Policies"
+    subcategory: "Password Policy"
+    severity: high
+    levels: ["basic", "moderate", "strict"]
+    tags: ["password"]
+    check:
+      kind: powershell
+      timeout: 60
+      script: |
+        $e=12; secedit /export /cfg $env:TEMP\secpol.cfg|Out-Null; $v=(gc "$env:TEMP\secpol.cfg"|%{if($_ -match '^MinimumPasswordLength\s*=\s*(\d+)'){[int]$Matches[1]}}|select -first 1); if(-not $v){$v=0}; [pscustomobject]@{compliant=($v -ge $e);current=$v;expected=$e;details="MinimumPasswordLength=$v"}|ConvertTo-Json -Compress
+    snapshot:
+      kind: powershell
+      script: |
+        secedit /export /cfg $env:TEMP\secpol.cfg|Out-Null; $v=(gc "$env:TEMP\secpol.cfg"|%{if($_ -match '^MinimumPasswordLength\s*=\s*(\d+)'){[int]$Matches[1]}}|select -first 1); if(-not $v){$v=0}; [pscustomobject]@{MinimumPasswordLength=$v}|ConvertTo-Json -Compress
+    remediate:
+      kind: powershell
+      script: |
+        $e=12; $p="$env:TEMP\secpol.inf"; sc $p -Encoding ASCII "[System Access]`nMinimumPasswordLength=$e"; secedit /configure /db "$env:windir\security\local.sdb" /cfg $p /areas SECURITYPOLICY|Out-Null; [pscustomobject]@{success=$true;details="Set MinimumPasswordLength=$e"}|ConvertTo-Json -Compress
+    rollback:
+      kind: powershell
+      script: |
+        $prev=(gc -raw -)|ConvertFrom-Json; $v=[int]$prev.MinimumPasswordLength; $p="$env:TEMP\secpol.inf"; sc $p -Encoding ASCII "[System Access]`nMinimumPasswordLength=$v"; secedit /configure /db "$env:windir\security\local.sdb" /cfg $p /areas SECURITYPOLICY|Out-Null; [pscustomobject]@{success=$true;details="Restored MinimumPasswordLength=$v"}|ConvertTo-Json -Compress
+
+  - id: "WIN-1.a.v"
+    title: "Password must meet complexity requirements: Enabled"
+    category: "Account Policies"
+    subcategory: "Password Policy"
+    severity: high
+    levels: ["basic", "moderate", "strict"]
+    tags: ["password"]
+    check:
+      kind: powershell
+      timeout: 30
+      script: |
+        $e=1; $p='HKLM:\SYSTEM\CurrentControlSet\Control\Lsa'; $n='PasswordComplexity'; $v=(Get-ItemProperty -Path $p -Name $n -ErrorAction SilentlyContinue).$n; if($null -eq $v){$v=0}; [pscustomobject]@{compliant=([int]$v -eq $e);current=[int]$v;expected=$e;details="$n=$v"}|ConvertTo-Json -Compress
+    snapshot:
+      kind: powershell
+      script: |
+        $p='HKLM:\SYSTEM\CurrentControlSet\Control\Lsa'; $n='PasswordComplexity'; $v=(gp $p -Name $n -EA SilentlyContinue).$n; if($null -eq $v){$v=0}; [pscustomobject]@{PasswordComplexity=[int]$v}|ConvertTo-Json -Compress
+    remediate:
+      kind: powershell
+      script: |
+        $e=1; sp 'HKLM:\SYSTEM\CurrentControlSet\Control\Lsa' 'PasswordComplexity' $e -Type DWord; [pscustomobject]@{success=$true;details="Set PasswordComplexity=$e"}|ConvertTo-Json -Compress
+    rollback:
+      kind: powershell
+      script: |
+        $prev=(gc -raw -)|ConvertFrom-Json; sp 'HKLM:\SYSTEM\CurrentControlSet\Control\Lsa' 'PasswordComplexity' ([int]$prev.PasswordComplexity) -Type DWord; [pscustomobject]@{success=$true;details="Restored PasswordComplexity=$([int]$prev.PasswordComplexity)"}|ConvertTo-Json -Compress
+
+  - id: "WIN-1.a.vi"
+    title: "Store passwords using reversible encryption: Disabled"
+    category: "Account Policies"
+    subcategory: "Password Policy"
+    severity: high
+    levels: ["basic", "moderate", "strict"]
+    tags: ["password"]
+    check:
+      kind: powershell
+      timeout: 30
+      script: |
+        $e=0; $p='HKLM:\SYSTEM\CurrentControlSet\Control\Lsa'; $n='ClearTextPassword'; $v=(gp $p -Name $n -EA SilentlyContinue).$n; if($null -eq $v){$v=0}; [pscustomobject]@{compliant=([int]$v -eq $e);current=[int]$v;expected=$e;details="$n=$v"}|ConvertTo-Json -Compress
+    snapshot:
+      kind: powershell
+      script: |
+        $p='HKLM:\SYSTEM\CurrentControlSet\Control\Lsa'; $n='ClearTextPassword'; $v=(gp $p -Name $n -EA SilentlyContinue).$n; if($null -eq $v){$v=0}; [pscustomobject]@{ClearTextPassword=[int]$v}|ConvertTo-Json -Compress
+    remediate:
+      kind: powershell
+      script: |
+        sp 'HKLM:\SYSTEM\CurrentControlSet\Control\Lsa' 'ClearTextPassword' 0 -Type DWord; [pscustomobject]@{success=$true;details="Set ClearTextPassword=0"}|ConvertTo-Json -Compress
+    rollback:
+      kind: powershell
+      script: |
+        $prev=(gc -raw -)|ConvertFrom-Json; sp 'HKLM:\SYSTEM\CurrentControlSet\Control\Lsa' 'ClearTextPassword' ([int]$prev.ClearTextPassword) -Type DWord; [pscustomobject]@{success=$true;details="Restored ClearTextPassword=$([int]$prev.ClearTextPassword)"}|ConvertTo-Json -Compress
+
+  # 1.b Account Lockout Policy
+  - id: "WIN-1.b.i"
+    title: "Account lockout duration: 15+ minutes"
+    category: "Account Policies"
+    subcategory: "Account Lockout Policy"
+    severity: high
+    levels: ["basic", "moderate", "strict"]
+    tags: ["lockout"]
+    check:
+      kind: powershell
+      timeout: 60
+      script: |
+        $e=15; secedit /export /cfg $env:TEMP\secpol.cfg|Out-Null; $v=(gc "$env:TEMP\secpol.cfg"|%{if($_ -match '^LockoutDuration\s*=\s*(\d+)'){[int]$Matches[1]}}|select -first 1); if(-not $v){$v=0}; [pscustomobject]@{compliant=($v -ge $e);current=$v;expected=$e;details="LockoutDuration=$v"}|ConvertTo-Json -Compress
+    snapshot:
+      kind: powershell
+      script: |
+        secedit /export /cfg $env:TEMP\secpol.cfg|Out-Null; $v=(gc "$env:TEMP\secpol.cfg"|%{if($_ -match '^LockoutDuration\s*=\s*(\d+)'){[int]$Matches[1]}}|select -first 1); if(-not $v){$v=0}; [pscustomobject]@{LockoutDuration=$v}|ConvertTo-Json -Compress
+    remediate:
+      kind: powershell
+      script: |
+        $e=15; $p="$env:TEMP\secpol.inf"; sc $p -Encoding ASCII "[System Access]`nLockoutDuration=$e"; secedit /configure /db "$env:windir\security\local.sdb" /cfg $p /areas SECURITYPOLICY|Out-Null; [pscustomobject]@{success=$true;details="Set LockoutDuration=$e"}|ConvertTo-Json -Compress
+    rollback:
+      kind: powershell
+      script: |
+        $prev=(gc -raw -)|ConvertFrom-Json; $v=[int]$prev.LockoutDuration; $p="$env:TEMP\secpol.inf"; sc $p -Encoding ASCII "[System Access]`nLockoutDuration=$v"; secedit /configure /db "$env:windir\security\local.sdb" /cfg $p /areas SECURITYPOLICY|Out-Null; [pscustomobject]@{success=$true;details="Restored LockoutDuration=$v"}|ConvertTo-Json -Compress
+
+  - id: "WIN-1.b.ii"
+    title: "Account lockout threshold: 5 or fewer and not 0"
+    category: "Account Policies"
+    subcategory: "Account Lockout Policy"
+    severity: high
+    levels: ["basic", "moderate", "strict"]
+    tags: ["lockout"]
+    check:
+      kind: powershell
+      timeout: 60
+      script: |
+        $e=5; secedit /export /cfg $env:TEMP\secpol.cfg|Out-Null; $v=(gc "$env:TEMP\secpol.cfg"|%{if($_ -match '^LockoutBadCount\s*=\s*(\d+)'){[int]$Matches[1]}}|select -first 1); if(-not $v){$v=0}; [pscustomobject]@{compliant=($v -le $e -and $v -ne 0);current=$v;expected="<=$e and !=0";details="LockoutBadCount=$v"}|ConvertTo-Json -Compress
+    snapshot:
+      kind: powershell
+      script: |
+        secedit /export /cfg $env:TEMP\secpol.cfg|Out-Null; $v=(gc "$env:TEMP\secpol.cfg"|%{if($_ -match '^LockoutBadCount\s*=\s*(\d+)'){[int]$Matches[1]}}|select -first 1); if(-not $v){$v=0}; [pscustomobject]@{LockoutBadCount=$v}|ConvertTo-Json -Compress
+    remediate:
+      kind: powershell
+      script: |
+        $e=5; $p="$env:TEMP\secpol.inf"; sc $p -Encoding ASCII "[System Access]`nLockoutBadCount=$e"; secedit /configure /db "$env:windir\security\local.sdb" /cfg $p /areas SECURITYPOLICY|Out-Null; [pscustomobject]@{success=$true;details="Set LockoutBadCount=$e"}|ConvertTo-Json -Compress
+    rollback:
+      kind: powershell
+      script: |
+        $prev=(gc -raw -)|ConvertFrom-Json; $v=[int]$prev.LockoutBadCount; $p="$env:TEMP\secpol.inf"; sc $p -Encoding ASCII "[System Access]`nLockoutBadCount=$v"; secedit /configure /db "$env:windir\security\local.sdb" /cfg $p /areas SECURITYPOLICY|Out-Null; [pscustomobject]@{success=$true;details="Restored LockoutBadCount=$v"}|ConvertTo-Json -Compress
+
+  - id: "WIN-1.b.iii"
+    title: "Allow Administrator account lockout: Enabled (Manual)"
+    category: "Account Policies"
+    subcategory: "Account Lockout Policy"
+    severity: medium
+    levels: ["basic", "moderate", "strict"]
+    tags: ["manual"]
+    check:
+      kind: manual
+      script: "Verify 'Allow Administrator account lockout' is available and enabled on this SKU."
+    snapshot:
+      kind: manual
+      script: "Record current setting manually if present."
+    remediate:
+      kind: manual
+      script: "Enable via Local Security Policy if supported."
+    rollback:
+      kind: manual
+      script: "Manually revert to prior state."
+
+  # 3.b Interactive logon
+  - id: "WIN-3.b.i"
+    title: "Interactive logon: Do not require CTRL+ALT+DEL: Disabled (require CAD)"
+    category: "Security Options"
+    subcategory: "Interactive logon"
+    severity: high
+    levels: ["basic", "moderate", "strict"]
+    tags: ["logon"]
+    check:
+      kind: powershell
+      timeout: 30
+      script: |
+        $e=0; $p='HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System'; $n='DisableCAD'; $v=(gp $p -Name $n -EA SilentlyContinue).$n; if($null -eq $v){$v=1}; [pscustomobject]@{compliant=([int]$v -eq $e);current=[int]$v;expected=$e;details="$n=$v"}|ConvertTo-Json -Compress
+    snapshot:
+      kind: powershell
+      script: |
+        $p='HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System'; $n='DisableCAD'; $v=(gp $p -Name $n -EA SilentlyContinue).$n; if($null -eq $v){$v=1}; [pscustomobject]@{DisableCAD=[int]$v}|ConvertTo-Json -Compress
+    remediate:
+      kind: powershell
+      script: |
+        sp 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System' 'DisableCAD' 0 -Type DWord; [pscustomobject]@{success=$true;details="Set DisableCAD=0"}|ConvertTo-Json -Compress
+    rollback:
+      kind: powershell
+      script: |
+        $prev=(gc -raw -)|ConvertFrom-Json; sp 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System' 'DisableCAD' ([int]$prev.DisableCAD) -Type DWord; [pscustomobject]@{success=$true;details="Restored DisableCAD=$([int]$prev.DisableCAD)"}|ConvertTo-Json -Compress
+
+  - id: "WIN-3.b.ii"
+    title: "Interactive logon: Don't display last signed in: Enabled"
+    category: "Security Options"
+    subcategory: "Interactive logon"
+    severity: medium
+    levels: ["basic", "moderate", "strict"]
+    tags: ["logon"]
+    check:
+      kind: powershell
+      timeout: 30
+      script: |
+        $e=1; $p='HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System'; $n='DontDisplayLastUserName'; $v=(gp $p -Name $n -EA SilentlyContinue).$n; if($null -eq $v){$v=0}; [pscustomobject]@{compliant=([int]$v -eq $e);current=[int]$v;expected=$e;details="$n=$v"}|ConvertTo-Json -Compress
+    snapshot:
+      kind: powershell
+      script: |
+        $p='HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System'; $n='DontDisplayLastUserName'; $v=(gp $p -Name $n -EA SilentlyContinue).$n; if($null -eq $v){$v=0}; [pscustomobject]@{DontDisplayLastUserName=[int]$v}|ConvertTo-Json -Compress
+    remediate:
+      kind: powershell
+      script: |
+        sp 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System' 'DontDisplayLastUserName' 1 -Type DWord; [pscustomobject]@{success=$true;details="Set DontDisplayLastUserName=1"}|ConvertTo-Json -Compress
+    rollback:
+      kind: powershell
+      script: |
+        $prev=(gc -raw -)|ConvertFrom-Json; sp 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System' 'DontDisplayLastUserName' ([int]$prev.DontDisplayLastUserName) -Type DWord; [pscustomobject]@{success=$true;details="Restored DontDisplayLastUserName=$([int]$prev.DontDisplayLastUserName)"}|ConvertTo-Json -Compress
+
+  # 3.d Network security (NTLM)
+  - id: "WIN-3.d.iv"
+    title: "Minimum session security for NTLM SSP clients: Require NTLMv2 + 128-bit"
+    category: "Security Options"
+    subcategory: "Network security"
+    severity: high
+    levels: ["basic", "moderate", "strict"]
+    tags: ["ntlm"]
+    check:
+      kind: powershell
+      timeout: 30
+      script: |
+        $req=0xA0000; $p='HKLM:\SYSTEM\CurrentControlSet\Control\Lsa\MSV1_0'; $n='NTLMMinClientSec'; $v=(gp $p -Name $n -EA SilentlyContinue).$n; if($null -eq $v){$v=0}; $ok=(( [int]$v -band $req) -eq $req); [pscustomobject]@{compliant=$ok;current=[int]$v;expected="bitmask includes 0xA0000";details="$n=$v"}|ConvertTo-Json -Compress
+    snapshot:
+      kind: powershell
+      script: |
+        $p='HKLM:\SYSTEM\CurrentControlSet\Control\Lsa\MSV1_0'; $n='NTLMMinClientSec'; $v=(gp $p -Name $n -EA SilentlyContinue).$n; if($null -eq $v){$v=0}; [pscustomobject]@{NTLMMinClientSec=[int]$v}|ConvertTo-Json -Compress
+    remediate:
+      kind: powershell
+      script: |
+        sp 'HKLM:\SYSTEM\CurrentControlSet\Control\Lsa\MSV1_0' 'NTLMMinClientSec' 0xA0000 -Type DWord; [pscustomobject]@{success=$true;details="Set NTLMMinClientSec=0xA0000"}|ConvertTo-Json -Compress
+    rollback:
+      kind: powershell
+      script: |
+        $prev=(gc -raw -)|ConvertFrom-Json; sp 'HKLM:\SYSTEM\CurrentControlSet\Control\Lsa\MSV1_0' 'NTLMMinClientSec' ([int]$prev.NTLMMinClientSec) -Type DWord; [pscustomobject]@{success=$true;details="Restored NTLMMinClientSec=$([int]$prev.NTLMMinClientSec)"}|ConvertTo-Json -Compress
+
+  - id: "WIN-3.d.v"
+    title: "Minimum session security for NTLM SSP servers: Require NTLMv2 + 128-bit"
+    category: "Security Options"
+    subcategory: "Network security"
+    severity: high
+    levels: ["basic", "moderate", "strict"]
+    tags: ["ntlm"]
+    check:
+      kind: powershell
+      timeout: 30
+      script: |
+        $req=0xA0000; $p='HKLM:\SYSTEM\CurrentControlSet\Control\Lsa\MSV1_0'; $n='NTLMMinServerSec'; $v=(gp $p -Name $n -EA SilentlyContinue).$n; if($null -eq $v){$v=0}; $ok=(( [int]$v -band $req) -eq $req); [pscustomobject]@{compliant=$ok;current=[int]$v;expected="bitmask includes 0xA0000";details="$n=$v"}|ConvertTo-Json -Compress
+    snapshot:
+      kind: powershell
+      script: |
+        $p='HKLM:\SYSTEM\CurrentControlSet\Control\Lsa\MSV1_0'; $n='NTLMMinServerSec'; $v=(gp $p -Name $n -EA SilentlyContinue).$n; if($null -eq $v){$v=0}; [pscustomobject]@{NTLMMinServerSec=[int]$v}|ConvertTo-Json -Compress
+    remediate:
+      kind: powershell
+      script: |
+        sp 'HKLM:\SYSTEM\CurrentControlSet\Control\Lsa\MSV1_0' 'NTLMMinServerSec' 0xA0000 -Type DWord; [pscustomobject]@{success=$true;details="Set NTLMMinServerSec=0xA0000"}|ConvertTo-Json -Compress
+    rollback:
+      kind: powershell
+      script: |
+        $prev=(gc -raw -)|ConvertFrom-Json; sp 'HKLM:\SYSTEM\CurrentControlSet\Control\Lsa\MSV1_0' 'NTLMMinServerSec' ([int]$prev.NTLMMinServerSec) -Type DWord; [pscustomobject]@{success=$true;details="Restored NTLMMinServerSec=$([int]$prev.NTLMMinServerSec)"}|ConvertTo-Json -Compress
+
+  - id: "WIN-3.d.i"
+    title: "Kerberos allowed encryption types: AES128, AES256, Future"
+    category: "Security Options"
+    subcategory: "Network security"
+    severity: high
+    levels: ["basic", "moderate", "strict"]
+    tags: ["kerberos"]
+    check:
+      kind: powershell
+      timeout: 30
+      script: |
+        $req=0x38; $p='HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\Kerberos\Parameters'; $n='SupportedEncryptionTypes'; $v=(gp $p -Name $n -EA SilentlyContinue).$n; if($null -eq $v){$v=0}; $ok=(( [int]$v -band $req) -eq $req); [pscustomobject]@{compliant=$ok;current=[int]$v;expected="bitmask includes 0x38";details="$n=$v"}|ConvertTo-Json -Compress
+    snapshot:
+      kind: powershell
+      script: |
+        $p='HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\Kerberos\Parameters'; $n='SupportedEncryptionTypes'; $v=(gp $p -Name $n -EA SilentlyContinue).$n; if($null -eq $v){$v=0}; [pscustomobject]@{SupportedEncryptionTypes=[int]$v}|ConvertTo-Json -Compress
+    remediate:
+      kind: powershell
+      script: |
+        sp 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\Kerberos\Parameters' 'SupportedEncryptionTypes' 0x38 -Type DWord; [pscustomobject]@{success=$true;details="Set SupportedEncryptionTypes=0x38"}|ConvertTo-Json -Compress
+    rollback:
+      kind: powershell
+      script: |
+        $prev=(gc -raw -)|ConvertFrom-Json; sp 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\Kerberos\Parameters' 'SupportedEncryptionTypes' ([int]$prev.SupportedEncryptionTypes) -Type DWord; [pscustomobject]@{success=$true;details="Restored SupportedEncryptionTypes=$([int]$prev.SupportedEncryptionTypes)"}|ConvertTo-Json -Compress
+
+  # 5. Windows Defender Firewall profiles
+  - id: "WIN-5.a.i"
+    title: "Firewall Private profile: state ON"
+    category: "Firewall"
+    subcategory: "Private"
+    severity: high
+    levels: ["basic", "moderate", "strict"]
+    tags: ["firewall"]
+    check:
+      kind: powershell
+      timeout: 20
+      script: |
+        $s=(cmd /c 'netsh advfirewall show privateprofile'|Out-String); $m=[regex]::Match($s,'(?im)^\s*State\s*:\s*(\w+)'); $v=($m.Success)?$m.Groups[1].Value.ToLower():'unknown'; [pscustomobject]@{compliant=($v -eq 'on');current=$v;expected='on';details="Private.State=$v"}|ConvertTo-Json -Compress
+    snapshot:
+      kind: powershell
+      script: |
+        $s=(cmd /c 'netsh advfirewall show privateprofile'|Out-String); $m=[regex]::Match($s,'(?im)^\s*State\s*:\s*(\w+)'); $v=($m.Success)?$m.Groups[1].Value:'unknown'; [pscustomobject]@{PrivateState=$v}|ConvertTo-Json -Compress
+    remediate:
+      kind: powershell
+      script: |
+        cmd /c 'netsh advfirewall set privateprofile state on'|Out-Null; [pscustomobject]@{success=$true;details='Set privateprofile state=on'}|ConvertTo-Json -Compress
+    rollback:
+      kind: powershell
+      script: |
+        $prev=(gc -raw -)|ConvertFrom-Json; cmd /c ("netsh advfirewall set privateprofile state "+$prev.PrivateState)|Out-Null; [pscustomobject]@{success=$true;details=("Restored privateprofile state="+$prev.PrivateState)}|ConvertTo-Json -Compress
+
+  - id: "WIN-5.b.i"
+    title: "Firewall Public profile: state ON"
+    category: "Firewall"
+    subcategory: "Public"
+    severity: high
+    levels: ["basic", "moderate", "strict"]
+    tags: ["firewall"]
+    check:
+      kind: powershell
+      timeout: 20
+      script: |
+        $s=(cmd /c 'netsh advfirewall show publicprofile'|Out-String); $m=[regex]::Match($s,'(?im)^\s*State\s*:\s*(\w+)'); $v=($m.Success)?$m.Groups[1].Value.ToLower():'unknown'; [pscustomobject]@{compliant=($v -eq 'on');current=$v;expected='on';details="Public.State=$v"}|ConvertTo-Json -Compress
+    snapshot:
+      kind: powershell
+      script: |
+        $s=(cmd /c 'netsh advfirewall show publicprofile'|Out-String); $m=[regex]::Match($s,'(?im)^\s*State\s*:\s*(\w+)'); $v=($m.Success)?$m.Groups[1].Value:'unknown'; [pscustomobject]@{PublicState=$v}|ConvertTo-Json -Compress
+    remediate:
+      kind: powershell
+      script: |
+        cmd /c 'netsh advfirewall set publicprofile state on'|Out-Null; [pscustomobject]@{success=$true;details='Set publicprofile state=on'}|ConvertTo-Json -Compress
+    rollback:
+      kind: powershell
+      script: |
+        $prev=(gc -raw -)|ConvertFrom-Json; cmd /c ("netsh advfirewall set publicprofile state "+$prev.PublicState)|Out-Null; [pscustomobject]@{success=$true;details=("Restored publicprofile state="+$prev.PublicState)}|ConvertTo-Json -Compress
+
+  # 6. Advanced Audit Policy (example)
+  - id: "WIN-6.a.i"
+    title: "Audit Credential Validation: Success and Failure"
+    category: "Advanced Audit Policy"
+    subcategory: "Account Logon"
+    severity: high
+    levels: ["basic", "moderate", "strict"]
+    tags: ["audit"]
+    check:
+      kind: powershell
+      timeout: 20
+      script: |
+        $r=(auditpol /get /subcategory:"Credential Validation" /r|Out-String); $ok=($r -match '(?i)Success') -and ($r -match '(?i)Failure'); [pscustomobject]@{compliant=$ok;current=($r -replace '\r?\n',' ');expected='Success and Failure';details='auditpol'}|ConvertTo-Json -Compress
+    snapshot:
+      kind: powershell
+      script: |
+        [pscustomobject]@{AuditSub='Credential Validation';Raw=(auditpol /get /subcategory:"Credential Validation" /r|Out-String)}|ConvertTo-Json -Compress
+    remediate:
+      kind: powershell
+      script: |
+        auditpol /set /subcategory:"Credential Validation" /success:enable /failure:enable|Out-Null; [pscustomobject]@{success=$true;details='auditpol set Credential Validation success/failure enable'}|ConvertTo-Json -Compress
+    rollback:
+      kind: powershell
+      script: |
+        $prev=(gc -raw -)|ConvertFrom-Json; $s= if($prev.Raw -match '(?i)Success'){ 'enable' } else { 'disable' }; $f= if($prev.Raw -match '(?i)Failure'){ 'enable' } else { 'disable' }; auditpol /set /subcategory:"Credential Validation" /success:$s /failure:$f|Out-Null; [pscustomobject]@{success=$true;details=("Restored auditpol success="+$s+", failure="+$f)}|ConvertTo-Json -Compress
+
+  # 4.b System Services (example)
+  - id: "WIN-4.b.x"
+    title: "Remote Registry service: Disabled"
+    category: "System Settings"
+    subcategory: "Services"
+    severity: high
+    levels: ["basic", "moderate", "strict"]
+    tags: ["services"]
+    check:
+      kind: powershell
+      timeout: 20
+      script: |
+        $n='RemoteRegistry'; $c=Get-CimInstance Win32_Service -Filter "Name='$n'" -EA SilentlyContinue; $present=($null -ne $c); $start= if($present){$c.StartMode}else{'Missing'}; [pscustomobject]@{compliant=($present -and $c.StartMode -eq 'Disabled');current=$start;expected='Disabled';details="$n=$start"}|ConvertTo-Json -Compress
+    snapshot:
+      kind: powershell
+      script: |
+        $n='RemoteRegistry'; $c=Get-CimInstance Win32_Service -Filter "Name='$n'" -EA SilentlyContinue; [pscustomobject]@{Service=$n;Present=($null -ne $c);StartMode= if($c){$c.StartMode}else{'Missing'}}|ConvertTo-Json -Compress
+    remediate:
+      kind: powershell
+      script: |
+        Set-Service -Name 'RemoteRegistry' -StartupType Disabled -EA SilentlyContinue; Stop-Service -Name 'RemoteRegistry' -Force -EA SilentlyContinue; [pscustomobject]@{success=$true;details='Set RemoteRegistry Disabled'}|ConvertTo-Json -Compress
+    rollback:
+      kind: powershell
+      script: |
+        $prev=(gc -raw -)|ConvertFrom-Json; if($prev.Present){ Set-Service -Name $prev.Service -StartupType $prev.StartMode -EA SilentlyContinue }; [pscustomobject]@{success=$true;details=("Restored "+$prev.Service+" StartMode="+$prev.StartMode)}|ConvertTo-Json -Compress
