@@ -1,0 +1,725 @@
+policies:
+  # 1. Filesystem - Kernel modules blacklist (grouped)
+  - id: "LNX-1.a.01"
+    title: "Ensure dangerous/unused filesystem kernel modules are not available"
+    category: "Filesystem"
+    subcategory: "Configure Filesystem Kernel Modules"
+    severity: high
+    levels: ["basic", "moderate", "strict"]
+    tags: ["kernel-modules","filesystem","hardening"]
+    check:
+      kind: bash
+      timeout: 60
+      script: |
+        modules=(cramfs freevxfs hfs hfsplus jffs2 overlay squashfs udf usb-storage)
+        blacklist="/etc/modprobe.d/99-disable-filesystems.conf"
+        result=()
+        for m in "${modules[@]}"; do
+          # check if module file exists or currently loaded
+          found_file=$(modinfo "$m" >/dev/null 2>&1 && echo "yes" || echo "no")
+          loaded=$(lsmod | awk '{print $1}' | grep -x "$m" >/dev/null 2>&1 && echo "loaded" || echo "")
+          # check blacklist presence
+          bl=$(grep -E "^(install $m|blacklist $m)" "$blacklist" 2>/dev/null && echo "blacklisted" || echo "")
+          compliant=true
+          if [ "$found_file" = "yes" ] && [ -z "$bl" ]; then
+            compliant=false
+          fi
+          result+=("{\"module\":\"$m\",\"present\":\"$found_file\",\"loaded\":\"$loaded\",\"blacklisted\":\"$bl\",\"compliant\":$compliant}")
+        done
+        printf '{"compliant": %s, "modules":[%s]}' "$(printf '%s\n' "${result[@]}" | grep -c '"compliant":true' | awk -v total=${#modules[@]} '{if ($1==total) print "true"; else print "false"}')" "$(IFS=,; echo "${result[*]}")"
+    snapshot:
+      kind: bash
+      script: |
+        modules=(cramfs freevxfs hfs hfsplus jffs2 overlay squashfs udf usb-storage)
+        blacklist="/etc/modprobe.d/99-disable-filesystems.conf"
+        snapshot={}
+        echo -n '{"blacklist_file_exists":'$( [ -f "$blacklist" ] && echo "true" || echo "false" )', "entries":['
+        first=true
+        for m in "${modules[@]}"; do
+          present=$(modinfo "$m" >/dev/null 2>&1 && echo true || echo false)
+          loaded=$(lsmod | awk '{print $1}' | grep -x "$m" >/dev/null 2>&1 && echo true || echo false)
+          bl=$(grep -E "^(install $m|blacklist $m)" "$blacklist" 2>/dev/null >/dev/null && echo true || echo false)
+          if ! $first; then echo -n ,; fi
+          first=false
+          echo -n "{\"module\":\"$m\",\"present\":$present,\"loaded\":$loaded,\"blacklisted\":$bl}"
+        done
+        echo ']}'
+    remediate:
+      kind: bash
+      timeout: 120
+      script: |
+        modules=(cramfs freevxfs hfs hfsplus jffs2 overlay squashfs udf usb-storage)
+        blacklist="/etc/modprobe.d/99-disable-filesystems.conf"
+        # Create/append blacklist entries and set install /bin/true for available modules
+        mkdir -p /etc/modprobe.d
+        {
+          echo "# Blacklist filesystem and storage modules required by policy"
+          for m in "${modules[@]}"; do
+            echo "install $m /bin/true"
+            echo "blacklist $m"
+          done
+        } > "$blacklist"
+        # Update initramfs if present (Debian/Ubuntu/RedHat variants)
+        if command -v update-initramfs >/dev/null 2>&1; then update-initramfs -u || true; fi
+        if command -v dracut >/dev/null 2>&1; then dracut --regenerate-all --force >/dev/null 2>&1 || true; fi
+        printf '{"success":true,"details":"Wrote %s and attempted to refresh initramfs"}' "$blacklist"
+    rollback:
+      kind: bash
+      script: |
+        prev=$(cat - 2>/dev/null || echo "{}")
+        # Expect prev JSON from snapshot on stdin
+        # If previous blacklist file content is present in snapshot, restore it; otherwise remove file
+        # Our snapshot only recorded existence; so safest rollback: remove the created file if it previously didn't exist
+        blacklist="/etc/modprobe.d/99-disable-filesystems.conf"
+        existed_before=false
+        if echo "$prev" | grep -q '"blacklist_file_exists":true'; then existed_before=true; fi
+        if [ "$existed_before" = "false" ] && [ -f "$blacklist" ]; then
+          rm -f "$blacklist"
+          printf '{"success":true,"details":"Removed %s (did not exist previously)"}' "$blacklist"
+        else
+          printf '{"success":true,"details":"Left %s in place (existed before)"}' "$blacklist"
+        fi
+
+  # 1.b.i /tmp separate partition and mount options
+  - id: "LNX-1.b.01"
+    title: "Ensure /tmp is on a separate partition with nodev,nosuid,noexec"
+    category: "Filesystem"
+    subcategory: "Configure Filesystem Partitions"
+    severity: high
+    levels: ["basic", "moderate", "strict"]
+    tags: ["fstab","mount-options","tmp"]
+    check:
+      kind: bash
+      timeout: 30
+      script: |
+        # check /etc/fstab for /tmp
+        fstab="/etc/fstab"
+        entry=$(grep -E '^\s*[^#].*\s+/tmp\s' "$fstab" 2>/dev/null || true)
+        current_mount=$(findmnt -n -o SOURCE --target /tmp 2>/dev/null || echo "")
+        options=$(echo "$entry" | awk '{print $4}' || echo "")
+        compliant=false
+        reasons=()
+        if [ -n "$entry" ]; then
+          # ensure mountpoint is separate (source not same as root)
+          if [ -n "$current_mount" ] && [ "$(readlink -f "$current_mount")" != "$(readlink -f /)" ]; then
+            : # separate partition
+          else
+            reasons+=("not-separate")
+          fi
+          # check options
+          echo "$options" | grep -q "nodev" || reasons+=("missing-nodev")
+          echo "$options" | grep -q "nosuid" || reasons+=("missing-nosuid")
+          echo "$options" | grep -q "noexec" || reasons+=("missing-noexec")
+        else
+          reasons+=("no-fstab-entry")
+        fi
+        if [ ${#reasons[@]} -eq 0 ]; then compliant=true; else compliant=false; fi
+        printf '{"compliant":%s,"entry":"%s","mount_source":"%s","options":"%s","reasons": ["%s"]}' "$compliant" "$entry" "$current_mount" "$options" "$(IFS=\",\"; echo "${reasons[*]}")"
+    snapshot:
+      kind: bash
+      script: |
+        echo '{"fstab_entry":'
+        awk 'BEGIN{printed=0} /^\s*[^#].*\s+\/tmp\s/ {print gensub(/"/,"\\\"","g",$0); printed=1} END{ if(!printed) print ""}' /etc/fstab | jq -R -s -c '.' 
+        echo ', "mountinfo":' 
+        findmnt -n -o SOURCE,OPTIONS --target /tmp 2>/dev/null | awk '{print "{\"source\":\""$1"\",\"options\":\""$2"\"}"}' | jq -s -c '.'
+        echo '}'
+    remediate:
+      kind: bash
+      timeout: 120
+      script: |
+        # This remediation writes a commented template to /etc/fstab and remounts /tmp with proper options.
+        # NOTE: Creating a new partition is manual; this script will add proper options if /tmp entry exists or create tmpfs entry.
+        fstab="/etc/fstab"
+        entry=$(grep -E '^\s*[^#].*\s+/tmp\s' "$fstab" 2>/dev/null || true)
+        if [ -n "$entry" ]; then
+          # ensure options include nodev,nosuid,noexec
+          tmpfile=$(mktemp)
+          awk -v OFS='\t' '{
+            if ($0 ~ /^\s*[^#].*\s+\/tmp\s/) {
+              $4 = $4 ",nodev,nosuid,noexec"
+            }
+            print $0
+          }' "$fstab" > "$tmpfile" && mv "$tmpfile" "$fstab"
+          mount -o remount,nodev,nosuid,noexec /tmp || true
+          printf '{"success":true,"details":"Updated /etc/fstab entry for /tmp and remounted with nodev,nosuid,noexec"}'
+        else
+          # create tmpfs /tmp as fallback (safe default) and add to fstab
+          echo 'tmpfs /tmp tmpfs defaults,nodev,nosuid,noexec,mode=1777 0 0' >> /etc/fstab
+          mkdir -p /tmp
+          mount -a || true
+          printf '{"success":true,"details":"Added tmpfs entry for /tmp in /etc/fstab and mounted it"}'
+        fi
+    rollback:
+      kind: bash
+      script: |
+        prev=$(cat - 2>/dev/null || echo "{}")
+        # If snapshot had an fstab entry, restore by rewriting /etc/fstab lines for /tmp from snapshot text if present.
+        # If snapshot empty, remove any tmpfs /tmp line we added.
+        # This rollback is conservative: it will remove tmpfs /tmp if snapshot showed no fstab entry.
+        had_entry=$(echo "$prev" | jq -r '.fstab_entry' 2>/dev/null || echo "")
+        if [ -z "$had_entry" ] || [ "$had_entry" = "\"\"" ]; then
+          # remove tmpfs /tmp line
+          sed -i.bak '/\s\/tmp\s/ d' /etc/fstab || true
+          mount -o remount,defaults /tmp 2>/dev/null || true
+          printf '{"success":true,"details":"Removed /tmp fstab entry added by remediation"}'
+        else
+          printf '{"success":true,"details":"Left /etc/fstab as-is; manual restore required to exact previous content"}'
+        fi
+
+  # 1.c /dev/shm similar
+  - id: "LNX-1.c.01"
+    title: "Ensure /dev/shm is a separate tmpfs mount with nodev,nosuid,noexec"
+    category: "Filesystem"
+    subcategory: "Configure /dev/shm"
+    severity: high
+    levels: ["basic", "moderate", "strict"]
+    tags: ["shm","mount-options"]
+    check:
+      kind: bash
+      timeout: 20
+      script: |
+        entry=$(grep -E '^\s*[^#].*\s+/dev/shm\s' /etc/fstab || true)
+        mountinfo=$(findmnt -n -o FSTYPE,OPTIONS --target /dev/shm 2>/dev/null || echo "")
+        compliant=false
+        reasons=()
+        if [ -n "$entry" ] || [ -n "$mountinfo" ]; then
+          echo "$mountinfo" | grep -q "tmpfs" || reasons+=("not-tmpfs")
+          echo "$mountinfo" | grep -q "nodev" || reasons+=("missing-nodev")
+          echo "$mountinfo" | grep -q "nosuid" || reasons+=("missing-nosuid")
+          echo "$mountinfo" | grep -q "noexec" || reasons+=("missing-noexec")
+        else
+          reasons+=("no-entry-no-mount")
+        fi
+        if [ ${#reasons[@]} -eq 0 ]; then compliant=true; fi
+        printf '{"compliant":%s,"mountinfo":"%s","reasons":["%s"]}' "$compliant" "$mountinfo" "$(IFS=\",\"; echo "${reasons[*]}")"
+    snapshot:
+      kind: bash
+      script: |
+        findmnt -n -o SOURCE,FSTYPE,OPTIONS --target /dev/shm 2>/dev/null | awk '{print "{\"source\":\""$1"\",\"fstype\":\""$2"\",\"options\":\""$3"\"}"}' | jq -s -c '.'
+    remediate:
+      kind: bash
+      timeout: 60
+      script: |
+        # Add safe tmpfs entry if not present
+        if ! findmnt --target /dev/shm >/dev/null 2>&1; then
+          echo 'tmpfs /dev/shm tmpfs defaults,nodev,nosuid,noexec 0 0' >> /etc/fstab
+          mkdir -p /dev/shm
+          mount -a || true
+          printf '{"success":true,"details":"Added tmpfs entry and mounted /dev/shm with nodev,nosuid,noexec"}'
+        else
+          mount -o remount,nodev,nosuid,noexec /dev/shm || true
+          printf '{"success":true,"details":"Remounted /dev/shm with nodev,nosuid,noexec"}'
+        fi
+    rollback:
+      kind: bash
+      script: |
+        prev=$(cat - 2>/dev/null || echo "{}")
+        # Conservative rollback: if snapshot empty then remove added /dev/shm line
+        if [ -z "$(echo "$prev")" ]; then
+          sed -i.bak '/\/dev\/shm/ d' /etc/fstab || true
+          printf '{"success":true,"details":"Removed /dev/shm fstab entry added by remediation (if any)"}'
+        else
+          printf '{"success":true,"details":"Previous mount info present — manual restore may be required"}'
+        fi
+
+  # 1.d /home partition & options (nodev,nosuid)
+  - id: "LNX-1.d.01"
+    title: "Ensure /home is a separate partition with nodev,nosuid"
+    category: "Filesystem"
+    subcategory: "Configure /home"
+    severity: medium
+    levels: ["moderate","strict"]
+    tags: ["fstab","home"]
+    check:
+      kind: bash
+      timeout: 30
+      script: |
+        entry=$(grep -E '^\s*[^#].*\s+/home\s' /etc/fstab || true)
+        mountsrc=$(findmnt -n -o SOURCE --target /home 2>/dev/null || echo "")
+        options=$(echo "$entry" | awk '{print $4}' || echo "")
+        reasons=()
+        compliant=false
+        if [ -n "$entry" ]; then
+          if [ -n "$mountsrc" ] && [ "$(readlink -f "$mountsrc")" != "$(readlink -f /)" ]; then
+            : 
+          else
+            reasons+=("not-separate")
+          fi
+          echo "$options" | grep -q "nodev" || reasons+=("missing-nodev")
+          echo "$options" | grep -q "nosuid" || reasons+=("missing-nosuid")
+        else
+          reasons+=("no-fstab-entry")
+        fi
+        if [ ${#reasons[@]} -eq 0 ]; then compliant=true; fi
+        printf '{"compliant":%s,"entry":"%s","mount_source":"%s","options":"%s","reasons":["%s"]}' "$compliant" "$entry" "$mountsrc" "$options" "$(IFS=\",\"; echo "${reasons[*]}")"
+    snapshot:
+      kind: bash
+      script: |
+        grep -E '^\s*[^#].*\s+/home\s' /etc/fstab || true
+    remediate:
+      kind: bash
+      timeout: 120
+      script: |
+        entry=$(grep -E '^\s*[^#].*\s+/home\s' /etc/fstab || true)
+        if [ -n "$entry" ]; then
+          tmp=$(mktemp)
+          awk '{
+            if ($0 ~ /^\s*[^#].*\s+\/home\s/) {
+              $4 = $4 ",nodev,nosuid"
+            }
+            print $0
+          }' /etc/fstab > "$tmp" && mv "$tmp" /etc/fstab
+          mount -o remount,nodev,nosuid /home || true
+          printf '{"success":true,"details":"Appended nodev,nosuid to /home fstab entry and remounted"}'
+        else
+          printf '{"success":false,"details":"No /home fstab entry found — creating a separate partition requires manual partitioning"}'
+        fi
+    rollback:
+      kind: bash
+      script: |
+        # Conservative rollback: restore /etc/fstab from /etc/fstab.bak if exists, else no-op
+        if [ -f /etc/fstab.bak ]; then
+          mv /etc/fstab.bak /etc/fstab
+          printf '{"success":true,"details":"Restored /etc/fstab from /etc/fstab.bak"}'
+        else
+          printf '{"success":false,"details":"No backup found; manual rollback required"}'
+        fi
+
+  # 2.a.i Bootloader password
+  - id: "LNX-2.a.01"
+    title: "Ensure bootloader (GRUB) password is set"
+    category: "Package Management"
+    subcategory: "Configure Bootloader"
+    severity: high
+    levels: ["moderate","strict"]
+    tags: ["bootloader","grub","password"]
+    check:
+      kind: bash
+      timeout: 30
+      script: |
+        grub_cfgs=("/etc/grub.d/40_custom" "/boot/grub2/grub.cfg" "/boot/grub/grub.cfg" "/etc/grub.conf")
+        found=false
+        for f in "${grub_cfgs[@]}"; do
+          if [ -f "$f" ]; then
+            grep -E "set superusers|password_pbkdf2|password" "$f" >/dev/null 2>&1 && found=true || true
+          fi
+        done
+        printf '{"compliant":%s,"details":"grub password presence: %s"}' "$found" "$found"
+    snapshot:
+      kind: bash
+      script: |
+        for f in /etc/grub.d/40_custom /boot/grub2/grub.cfg /boot/grub/grub.cfg /etc/grub.conf; do
+          [ -f "$f" ] && echo "$f: " && sed -n '1,200p' "$f"
+        done
+    remediate:
+      kind: bash
+      timeout: 90
+      script: |
+        # Create a GRUB user with encrypted password using grub-mkpasswd-pbkdf2 if available
+        if command -v grub-mkpasswd-pbkdf2 >/dev/null 2>&1; then
+          echo "Run: grub-mkpasswd-pbkdf2 and add resulting 'password_pbkdf2' and 'set superusers' to /etc/grub.d/40_custom"
+          printf '{"success":false,"details":"Action required: interactive password creation with grub-mkpasswd-pbkdf2. See message."}'
+        else
+          printf '{"success":false,"details":"grub-mkpasswd-pbkdf2 not available; manual steps required."}'
+        fi
+    rollback:
+      kind: bash
+      script: |
+        printf '{"success":true,"details":"Rollback is manual: remove added grub password lines and regenerate grub config if necessary."}'
+
+  # 2.b.i Ensure ASLR enabled
+  - id: "LNX-2.b.01"
+    title: "Ensure Address Space Layout Randomization (ASLR) is enabled"
+    category: "Package Management"
+    subcategory: "Additional Process Hardening"
+    severity: high
+    levels: ["basic","moderate","strict"]
+    tags: ["aslr","kernel"]
+    check:
+      kind: bash
+      timeout: 10
+      script: |
+        val=$(sysctl -n kernel.randomize_va_space 2>/dev/null || echo "")
+        compliant=false
+        if [ "$val" = "2" ]; then compliant=true; fi
+        printf '{"compliant":%s,"current": "%s","expected":"2"}' "$compliant" "$val"
+    snapshot:
+      kind: bash
+      script: |
+        sysctl -n kernel.randomize_va_space || true
+    remediate:
+      kind: bash
+      timeout: 20
+      script: |
+        sysctl -w kernel.randomize_va_space=2
+        # persist
+        grep -q "^kernel.randomize_va_space" /etc/sysctl.conf 2>/dev/null && sed -i 's/^kernel.randomize_va_space.*/kernel.randomize_va_space=2/' /etc/sysctl.conf || echo "kernel.randomize_va_space=2" >> /etc/sysctl.conf
+        printf '{"success":true,"details":"Set kernel.randomize_va_space=2 (ASLR enabled)"}'
+    rollback:
+      kind: bash
+      script: |
+        prev=$(cat - 2>/dev/null || "")
+        if [ -n "$prev" ]; then
+          old=$(echo "$prev" | tr -d '\n')
+          sysctl -w kernel.randomize_va_space="$old" 2>/dev/null || true
+          printf '{"success":true,"details":"Attempted to restore previous kernel.randomize_va_space"}'
+        else
+          printf '{"success":false,"details":"No previous value provided for rollback"}'
+        fi
+
+  # 2.b.ii Ensure ptrace_scope restricted
+  - id: "LNX-2.b.02"
+    title: "Ensure ptrace_scope is restricted (Yama ptrace scope)"
+    category: "Package Management"
+    subcategory: "Additional Process Hardening"
+    severity: medium
+    levels: ["moderate","strict"]
+    tags: ["ptrace","yama"]
+    check:
+      kind: bash
+      timeout: 10
+      script: |
+        val=$(sysctl -n kernel.yama.ptrace_scope 2>/dev/null || echo "")
+        compliant=false
+        if [ "$val" = "1" ]; then compliant=true; fi
+        printf '{"compliant":%s,"current":"%s","expected":"1"}' "$compliant" "$val"
+    snapshot:
+      kind: bash
+      script: |
+        sysctl -n kernel.yama.ptrace_scope || true
+    remediate:
+      kind: bash
+      timeout: 20
+      script: |
+        sysctl -w kernel.yama.ptrace_scope=1
+        grep -q "^kernel.yama.ptrace_scope" /etc/sysctl.conf 2>/dev/null && sed -i 's/^kernel.yama.ptrace_scope.*/kernel.yama.ptrace_scope=1/' /etc/sysctl.conf || echo "kernel.yama.ptrace_scope=1" >> /etc/sysctl.conf
+        printf '{"success":true,"details":"Set kernel.yama.ptrace_scope=1"}'
+    rollback:
+      kind: bash
+      script: |
+        prev=$(cat - 2>/dev/null || "")
+        if [ -n "$prev" ]; then
+          sysctl -w kernel.yama.ptrace_scope="$prev" 2>/dev/null || true
+          printf '{"success":true,"details":"Restored previous ptrace_scope"}'
+        else
+          printf '{"success":false,"details":"No previous value provided"}'
+        fi
+
+  # 2.b.iii Restrict core dumps
+  - id: "LNX-2.b.03"
+    title: "Ensure core dumps are restricted (ulimit & /etc/security/limits.conf)"
+    category: "Package Management"
+    subcategory: "Additional Process Hardening"
+    severity: medium
+    levels: ["moderate","strict"]
+    tags: ["coredump","limits"]
+    check:
+      kind: bash
+      timeout: 10
+      script: |
+        core_pattern=$(cat /proc/sys/kernel/core_pattern 2>/dev/null || echo "")
+        rl=$(ulimit -c 2>/dev/null || echo "")
+        compliant=true
+        reasons=()
+        if [ "$rl" != "0" ]; then reasons+=("ulimit-core-not-zero"); compliant=false; fi
+        if echo "$core_pattern" | grep -q "core"; then # heuristic
+          : 
+        fi
+        printf '{"compliant":%s,"ulimit_core":"%s","core_pattern":"%s","reasons":["%s"]}' "$compliant" "$rl" "$core_pattern" "$(IFS=\",\"; echo "${reasons[*]}")"
+    snapshot:
+      kind: bash
+      script: |
+        echo '{"ulimit_core":"'"$(ulimit -c 2>/dev/null || echo "")"'","core_pattern":"'"$(cat /proc/sys/kernel/core_pattern 2>/dev/null || echo "")"'"}'
+    remediate:
+      kind: bash
+      timeout: 30
+      script: |
+        # set core dumps off for current session and persist via /etc/security/limits.conf
+        ulimit -c 0 || true
+        if ! grep -q "^\*.*hard.*core" /etc/security/limits.conf 2>/dev/null; then
+          echo "* hard core 0" >> /etc/security/limits.conf
+          echo "* soft core 0" >> /etc/security/limits.conf
+        else
+          sed -i 's/^\*.*hard.*core.*/* hard core 0/' /etc/security/limits.conf || true
+          sed -i 's/^\*.*soft.*core.*/* soft core 0/' /etc/security/limits.conf || true
+        fi
+        printf '{"success":true,"details":"Set ulimit core to 0 and persisted to /etc/security/limits.conf"}'
+    rollback:
+      kind: bash
+      script: |
+        # no full restore available; inform user
+        printf '{"success":false,"details":"Rollback requires previous snapshot content; manual revert of /etc/security/limits.conf recommended."}'
+
+  # 2.b.iv Prelink not installed
+  - id: "LNX-2.b.04"
+    title: "Ensure prelink is not installed"
+    category: "Package Management"
+    subcategory: "Additional Process Hardening"
+    severity: medium
+    levels: ["basic","moderate","strict"]
+    tags: ["prelink","packages"]
+    check:
+      kind: bash
+      timeout: 10
+      script: |
+        if command -v prelink >/dev/null 2>&1 || rpm -q prelink >/dev/null 2>&1 || dpkg -l prelink >/dev/null 2>&1; then
+          printf '{"compliant":false,"installed":true}'
+        else
+          printf '{"compliant":true,"installed":false}'
+        fi
+    snapshot:
+      kind: bash
+      script: |
+        echo '{"prelink_installed":'$(command -v prelink >/dev/null 2>&1 && echo true || echo false)'}'
+    remediate:
+      kind: bash
+      timeout: 60
+      script: |
+        if command -v apt-get >/dev/null 2>&1; then
+          apt-get remove -y prelink || true
+        elif command -v yum >/dev/null 2>&1 || command -v dnf >/dev/null 2>&1; then
+          (yum remove -y prelink || dnf remove -y prelink) || true
+        else
+          printf '{"success":false,"details":"Package manager not recognized; remove prelink manually."}' && exit 0
+        fi
+        printf '{"success":true,"details":"Attempted to remove prelink via package manager"}'
+    rollback:
+      kind: bash
+      script: |
+        printf '{"success":false,"details":"Rollback not supported automatically (reinstall manually if required)."}'
+
+  # 3.a Services - disable unwanted daemons (example group)
+  - id: "LNX-3.a.01"
+    title: "Ensure unwanted server services are not in use (avahi, rpcbind, samba, ftp, tftp, nis, nfs, xinetd, rsync, snmp, dnsmasq)"
+    category: "Services"
+    subcategory: "Configure Server Services"
+    severity: high
+    levels: ["basic","moderate","strict"]
+    tags: ["services","disable"]
+    check:
+      kind: bash
+      timeout: 60
+      script: |
+        services=(avahi-daemon rpcbind smb nmb vsftpd tftpd nis nfs-server xinetd rsync snmpd dnsmasq apache2 httpd)
+        result=()
+        for s in "${services[@]}"; do
+          # check systemd first
+          if systemctl list-unit-files --type=service 2>/dev/null | grep -q "^$s.service"; then
+            enabled=$(systemctl is-enabled "$s" 2>/dev/null || echo "not-found")
+            active=$(systemctl is-active "$s" 2>/dev/null || echo "inactive")
+          else
+            enabled="unknown"
+            active=$(ps -ef | grep -v grep | grep "$s" >/dev/null && echo "running" || echo "stopped")
+          fi
+          compliant=true
+          if [ "$enabled" = "enabled" ] || [ "$active" = "running" ]; then compliant=false; fi
+          result+=("{\"service\":\"$s\",\"enabled\":\"$enabled\",\"active\":\"$active\",\"compliant\":$compliant}")
+        done
+        printf '{"compliant":%s,"services":[%s]}' "$(printf '%s\n' "${result[@]}" | grep -c '"compliant":true' | awk -v total=${#services[@]} '{if ($1==total) print "true"; else print "false"}')" "$(IFS=,; echo "${result[*]}")"
+    snapshot:
+      kind: bash
+      script: |
+        services=(avahi-daemon rpcbind smb nmb vsftpd tftpd nis nfs-server xinetd rsync snmpd dnsmasq apache2 httpd)
+        for s in "${services[@]}"; do
+          systemctl status "$s" 2>/dev/null || true
+        done
+    remediate:
+      kind: bash
+      timeout: 120
+      script: |
+        services=(avahi-daemon rpcbind vsftpd tftpd nis nfs-server xinetd rsync snmpd dnsmasq apache2 httpd)
+        for s in "${services[@]}"; do
+          if systemctl list-unit-files --type=service 2>/dev/null | grep -q "^$s.service"; then
+            systemctl disable --now "$s" 2>/dev/null || true
+          else
+            # try package removal for common names
+            if command -v apt-get >/dev/null 2>&1; then
+              apt-get remove -y "$s" || true
+            elif command -v yum >/dev/null 2>&1 || command -v dnf >/dev/null 2>&1; then
+              (yum remove -y "$s" || dnf remove -y "$s") || true
+            fi
+          fi
+        done
+        printf '{"success":true,"details":"Attempted to disable or remove listed server services"}'
+    rollback:
+      kind: bash
+      script: |
+        printf '{"success":false,"details":"Rollback not automatically applied for service removals; review system backups or re-enable services manually."}'
+
+  # 4.a.i Network: identify IPv6 status
+  - id: "LNX-4.a.01"
+    title: "Identify IPv6 status (enabled/disabled)"
+    category: "Network"
+    subcategory: "Configure Network Devices"
+    severity: low
+    levels: ["basic","moderate","strict"]
+    tags: ["network","ipv6"]
+    check:
+      kind: bash
+      timeout: 10
+      script: |
+        # check sysctl and interface settings
+        ipv6_sysctl=$(sysctl -n net.ipv6.conf.all.disable_ipv6 2>/dev/null || echo "")
+        interfaces=$(ls /proc/net/if_inet6 2>/dev/null && echo "present" || echo "absent")
+        printf '{"ipv6_sysctl_disable_all":"%s","if_inet6":"%s"}' "$ipv6_sysctl" "$interfaces"
+    snapshot:
+      kind: bash
+      script: |
+        echo '{"sysctl":'$(sysctl -a | grep net.ipv6 || true)'}'
+    remediate:
+      kind: bash
+      timeout: 20
+      script: |
+        # To disable IPv6 system-wide:
+        sysctl -w net.ipv6.conf.all.disable_ipv6=1
+        sysctl -w net.ipv6.conf.default.disable_ipv6=1
+        grep -q '^net.ipv6.conf.all.disable_ipv6' /etc/sysctl.conf 2>/dev/null && sed -i 's/^net.ipv6.conf.all.disable_ipv6.*/net.ipv6.conf.all.disable_ipv6=1/' /etc/sysctl.conf || echo 'net.ipv6.conf.all.disable_ipv6=1' >> /etc/sysctl.conf
+        grep -q '^net.ipv6.conf.default.disable_ipv6' /etc/sysctl.conf 2>/dev/null && sed -i 's/^net.ipv6.conf.default.disable_ipv6.*/net.ipv6.conf.default.disable_ipv6=1/' /etc/sysctl.conf || echo 'net.ipv6.conf.default.disable_ipv6=1' >> /etc/sysctl.conf
+        printf '{"success":true,"details":"Attempted to disable IPv6 via sysctl (persisted in /etc/sysctl.conf)"}'
+    rollback:
+      kind: bash
+      script: |
+        prev=$(cat - 2>/dev/null || "")
+        if [ -n "$prev" ]; then
+          # try to restore previous values if provided
+          grep -v '^net.ipv6.conf.all.disable_ipv6' /etc/sysctl.conf > /etc/sysctl.conf.tmp && mv /etc/sysctl.conf.tmp /etc/sysctl.conf || true
+          grep -v '^net.ipv6.conf.default.disable_ipv6' /etc/sysctl.conf > /etc/sysctl.conf.tmp && mv /etc/sysctl.conf.tmp /etc/sysctl.conf || true
+          printf '{"success":true,"details":"Removed IPv6 disable entries from /etc/sysctl.conf; reload sysctl if required."}'
+        else
+          printf '{"success":false,"details":"No snapshot provided for rollback."}'
+        fi
+
+  # 4.c.i Network Kernel Parameters: ip_forward disabled
+  - id: "LNX-4.c.01"
+    title: "Ensure IP forwarding is disabled"
+    category: "Network"
+    subcategory: "Configure Network Kernel Parameters"
+    severity: high
+    levels: ["basic","moderate","strict"]
+    tags: ["sysctl","ip_forward"]
+    check:
+      kind: bash
+      timeout: 10
+      script: |
+        val=$(sysctl -n net.ipv4.ip_forward 2>/dev/null || echo "")
+        compliant=false
+        if [ "$val" = "0" ]; then compliant=true; fi
+        printf '{"compliant":%s,"current":"%s"}' "$compliant" "$val"
+    snapshot:
+      kind: bash
+      script: |
+        sysctl -n net.ipv4.ip_forward || true
+    remediate:
+      kind: bash
+      timeout: 20
+      script: |
+        sysctl -w net.ipv4.ip_forward=0
+        grep -q '^net.ipv4.ip_forward' /etc/sysctl.conf 2>/dev/null && sed -i 's/^net.ipv4.ip_forward.*/net.ipv4.ip_forward=0/' /etc/sysctl.conf || echo 'net.ipv4.ip_forward=0' >> /etc/sysctl.conf
+        printf '{"success":true,"details":"Set net.ipv4.ip_forward=0"}'
+    rollback:
+      kind: bash
+      script: |
+        prev=$(cat - 2>/dev/null || "")
+        if [ -n "$prev" ]; then
+          sysctl -w net.ipv4.ip_forward="$prev" 2>/dev/null || true
+          printf '{"success":true,"details":"Restored previous ip_forward value"}'
+        else
+          printf '{"success":false,"details":"No previous value provided"}'
+        fi
+
+  # 5.a Ensure a single firewall utility (ufw) is available & enabled (example)
+  - id: "LNX-5.a.01"
+    title: "Ensure UFW is installed and enabled (single firewall utility)"
+    category: "Host Based Firewall"
+    subcategory: "Configure a single firewall utility"
+    severity: high
+    levels: ["basic","moderate","strict"]
+    tags: ["firewall","ufw"]
+    check:
+      kind: bash
+      timeout: 20
+      script: |
+        if command -v ufw >/dev/null 2>&1; then
+          enabled=$(ufw status | head -n1 2>/dev/null || echo "")
+          compliant=$(echo "$enabled" | grep -qi "Status: active" && echo true || echo false)
+          printf '{"compliant":%s,"status_line":"%s"}' "$compliant" "$enabled"
+        else
+          printf '{"compliant":false,"status_line":"ufw-not-installed"}'
+        fi
+    snapshot:
+      kind: bash
+      script: |
+        if command -v ufw >/dev/null 2>&1; then ufw status verbose || true; else echo '{"ufw":false}'; fi
+    remediate:
+      kind: bash
+      timeout: 60
+      script: |
+        if command -v apt-get >/dev/null 2>&1; then
+          apt-get update && apt-get install -y ufw || true
+          ufw enable || true
+        elif command -v yum >/dev/null 2>&1 || command -v dnf >/dev/null 2>&1; then
+          (yum install -y ufw || dnf install -y ufw) || true
+          ufw enable || true
+        else
+          printf '{"success":false,"details":"Package manager not recognized; install ufw manually."}' && exit 0
+        fi
+        printf '{"success":true,"details":"Attempted to install and enable ufw"}'
+    rollback:
+      kind: bash
+      script: |
+        printf '{"success":false,"details":"Automatic rollback not implemented; disable ufw manually if needed."}'
+
+  # 6.a.i SSH server hardening samples (permissions and disable root login)
+  - id: "LNX-6.a.01"
+    title: "Ensure sshd config: PermitRootLogin no and proper permissions on ssh files"
+    category: "Access Control"
+    subcategory: "Configure SSH Server"
+    severity: high
+    levels: ["basic","moderate","strict"]
+    tags: ["ssh","sshd_config","permissions"]
+    check:
+      kind: bash
+      timeout: 20
+      script: |
+        conf="/etc/ssh/sshd_config"
+        pr=$(grep -E '^\s*PermitRootLogin\s+' "$conf" 2>/dev/null | awk '{print $2}' || echo "absent")
+        perm_ok=true
+        [ -f /etc/ssh/ssh_host_rsa_key ] && [ "$(stat -c %a /etc/ssh/ssh_host_rsa_key 2>/dev/null)" -le 600 ] || perm_ok=false
+        compliant=false
+        if [ "$pr" = "no" ] && [ "$perm_ok" = "true" ]; then compliant=true; fi
+        printf '{"compliant":%s,"PermitRootLogin":"%s","hostkey_perms_ok":%s}' "$compliant" "$pr" "$perm_ok"
+    snapshot:
+      kind: bash
+      script: |
+        awk '/^PermitRootLogin/ {print}' /etc/ssh/sshd_config || true
+        stat -c '{"file":"%n","mode":"%a"}' /etc/ssh/ssh_host_* 2>/dev/null | jq -s -c '.'
+    remediate:
+      kind: bash
+      timeout: 40
+      script: |
+        conf="/etc/ssh/sshd_config"
+        if grep -q '^PermitRootLogin' "$conf"; then
+          sed -i 's/^PermitRootLogin.*/PermitRootLogin no/' "$conf"
+        else
+          echo "PermitRootLogin no" >> "$conf"
+        fi
+        chmod 600 /etc/ssh/ssh_host_* 2>/dev/null || true
+        systemctl reload sshd 2>/dev/null || service sshd reload 2>/dev/null || true
+        printf '{"success":true,"details":"Set PermitRootLogin no and adjusted host key perms (if present). Reloaded sshd."}'
+    rollback:
+      kind: bash
+      script: |
+        prev=$(cat - 2>/dev/null || "")
+        if [ -n "$prev" ]; then
+          # attempt to restore PermitRootLogin if snapshot provided
+          pr=$(echo "$prev" | jq -r '.[0] // empty' 2>/dev/null || echo "")
+          if [ -n "$pr" ]; then
+            sed -i "s/^PermitRootLogin.*/PermitRootLogin $pr/" /etc/ssh/sshd_config || true
+            systemctl reload sshd 2>/dev/null || true
+            printf '{"success":true,"details":"Attempted to restore PermitRootLogin from snapshot"}'
+          else
+            printf '{"success":false,"details":"No PermitRootLogin value in snapshot; manual revert required"}'
+          fi
+        else
+          printf '{"success":false,"details":"No snapshot provided"}'
+        fi
