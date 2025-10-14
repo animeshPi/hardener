@@ -1,0 +1,173 @@
+[
+  {
+    "policy_id": "WIN-1.a.i",
+    "title": "Enforce password history: 24 or more passwords",
+    "kind": "powershell",
+    "raw": "{\r\n    \"PasswordHistorySize\":  10,\r\n    \"source\":  \"secedit\"\r\n}\r\n",
+    "parsed": {
+      "PasswordHistorySize": 10,
+      "source": "secedit"
+    }
+  },
+  {
+    "policy_id": "WIN-1.a.ii",
+    "title": "Maximum password age: 90 days or fewer, not 0",
+    "kind": "powershell",
+    "raw": "{\r\n    \"MaximumPasswordAge\":  90,\r\n    \"source\":  \"secedit\"\r\n}\r\n",
+    "parsed": {
+      "MaximumPasswordAge": 90,
+      "source": "secedit"
+    }
+  },
+  {
+    "policy_id": "WIN-1.a.iii",
+    "title": "Minimum password age: 1 day or more",
+    "kind": "powershell",
+    "raw": "{\r\n    \"MinimumPasswordAge\":  1,\r\n    \"source\":  \"secedit\"\r\n}\r\n",
+    "parsed": {
+      "MinimumPasswordAge": 1,
+      "source": "secedit"
+    }
+  },
+  {
+    "policy_id": "WIN-1.a.iv",
+    "title": "Minimum password length: 12+ characters",
+    "kind": "powershell",
+    "raw": "{\r\n    \"MinimumPasswordLength\":  12,\r\n    \"source\":  \"secedit\"\r\n}\r\n",
+    "parsed": {
+      "MinimumPasswordLength": 12,
+      "source": "secedit"
+    }
+  },
+  {
+    "policy_id": "WIN-1.a.v",
+    "title": "Password must meet complexity requirements: Enabled",
+    "kind": "powershell",
+    "raw": "{\r\n    \"PasswordComplexity\":  1\r\n}\r\n",
+    "parsed": {
+      "PasswordComplexity": 1
+    }
+  },
+  {
+    "policy_id": "WIN-1.a.vi",
+    "title": "Store passwords using reversible encryption: Disabled",
+    "kind": "powershell",
+    "raw": "{\r\n    \"ClearTextPassword\":  0\r\n}\r\n",
+    "parsed": {
+      "ClearTextPassword": 0
+    }
+  },
+  {
+    "policy_id": "WIN-1.b.i",
+    "title": "Account lockout duration: 15+ minutes",
+    "kind": "powershell",
+    "raw": "{\r\n    \"LockoutDuration\":  15,\r\n    \"source\":  \"secedit\"\r\n}\r\n",
+    "parsed": {
+      "LockoutDuration": 15,
+      "source": "secedit"
+    }
+  },
+  {
+    "policy_id": "WIN-1.b.ii",
+    "title": "Account lockout threshold: 5 or fewer and not 0",
+    "kind": "powershell",
+    "raw": "{\r\n    \"LockoutBadCount\":  5,\r\n    \"source\":  \"secedit\"\r\n}\r\n",
+    "parsed": {
+      "LockoutBadCount": 5,
+      "source": "secedit"
+    }
+  },
+  {
+    "policy_id": "WIN-1.b.iii",
+    "title": "Allow Administrator account lockout: Enabled (Manual)",
+    "kind": "powershell",
+    "raw": "{\r\n    \"note\":  \"Record current setting manually if present.\"\r\n}\r\n",
+    "parsed": {
+      "note": "Record current setting manually if present."
+    }
+  },
+  {
+    "policy_id": "WIN-3.b.i",
+    "title": "Interactive logon: Do not require CTRL+ALT+DEL: Disabled (require CAD)",
+    "kind": "powershell",
+    "raw": "{\r\n    \"DisableCAD\":  0\r\n}\r\n",
+    "parsed": {
+      "DisableCAD": 0
+    }
+  },
+  {
+    "policy_id": "WIN-3.b.ii",
+    "title": "Interactive logon: Don't display last signed in: Enabled",
+    "kind": "powershell",
+    "raw": "{\r\n    \"DontDisplayLastUserName\":  1\r\n}\r\n",
+    "parsed": {
+      "DontDisplayLastUserName": 1
+    }
+  },
+  {
+    "policy_id": "WIN-3.d.iv",
+    "title": "Minimum session security for NTLM SSP clients: Require NTLMv2 + 128-bit",
+    "kind": "powershell",
+    "raw": "{\r\n    \"NTLMMinClientSec\":  655360\r\n}\r\n",
+    "parsed": {
+      "NTLMMinClientSec": 655360
+    }
+  },
+  {
+    "policy_id": "WIN-3.d.v",
+    "title": "Minimum session security for NTLM SSP servers: Require NTLMv2 + 128-bit",
+    "kind": "powershell",
+    "raw": "{\r\n    \"NTLMMinServerSec\":  655360\r\n}\r\n",
+    "parsed": {
+      "NTLMMinServerSec": 655360
+    }
+  },
+  {
+    "policy_id": "WIN-3.d.i",
+    "title": "Kerberos allowed encryption types: AES128, AES256, Future",
+    "kind": "powershell",
+    "raw": "{\r\n    \"SupportedEncryptionTypes\":  56\r\n}\r\n",
+    "parsed": {
+      "SupportedEncryptionTypes": 56
+    }
+  },
+  {
+    "policy_id": "WIN-5.a.i",
+    "title": "Firewall Private profile: state ON",
+    "kind": "powershell",
+    "raw": "{\r\n    \"PrivateState\":  \"On\"\r\n}\r\n",
+    "parsed": {
+      "PrivateState": "On"
+    }
+  },
+  {
+    "policy_id": "WIN-5.b.i",
+    "title": "Firewall Public profile: state ON",
+    "kind": "powershell",
+    "raw": "{\r\n    \"PublicState\":  \"On\"\r\n}\r\n",
+    "parsed": {
+      "PublicState": "On"
+    }
+  },
+  {
+    "policy_id": "WIN-6.a.i",
+    "title": "Audit Credential Validation: Success and Failure",
+    "kind": "powershell",
+    "raw": "{\r\n    \"AuditSub\":  \"Credential Validation\",\r\n    \"Raw\":  \"Machine Name,Policy Target,Subcategory,Subcategory GUID,Inclusion Setting,Exclusion Setting\\r\\n\\r\\nWINDOWS,System,Credential Validation,{0CCE923F-69AE-11D9-BED3-505054503030},Success and Failure,\\r\\n\\r\\n\"\r\n}\r\n",
+    "parsed": {
+      "AuditSub": "Credential Validation",
+      "Raw": "Machine Name,Policy Target,Subcategory,Subcategory GUID,Inclusion Setting,Exclusion Setting\r\n\r\nWINDOWS,System,Credential Validation,{0CCE923F-69AE-11D9-BED3-505054503030},Success and Failure,\r\n\r\n"
+    }
+  },
+  {
+    "policy_id": "WIN-4.b.x",
+    "title": "Remote Registry service: Disabled",
+    "kind": "powershell",
+    "raw": "{\r\n    \"Service\":  \"RemoteRegistry\",\r\n    \"Present\":  true,\r\n    \"StartMode\":  \"Disabled\"\r\n}\r\n",
+    "parsed": {
+      "Present": true,
+      "Service": "RemoteRegistry",
+      "StartMode": "Disabled"
+    }
+  }
+]

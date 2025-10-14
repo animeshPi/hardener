@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
 	"runtime"
 	"time"
 
@@ -85,25 +84,25 @@ func main() {
 		fmt.Printf("[SNAPSHOT] %s (%s): err=%s\n", r.PolicyID, r.Title, safeStr(r.Error))
 	}
 
-	// Write snapshot results to file with timestamped name
-	snapshotDir := "snapshots"
+	// // Write snapshot results to file with timestamped name
+	// snapshotDir := "snapshots"
 
-	// Ensure the snapshots directory exists
-	if err := os.MkdirAll(snapshotDir, os.ModePerm); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to create snapshot directory: %v\n", err)
-		os.Exit(1)
-	}
+	// // Ensure the snapshots directory exists
+	// if err := os.MkdirAll(snapshotDir, os.ModePerm); err != nil {
+	// 	fmt.Fprintf(os.Stderr, "Failed to create snapshot directory: %v\n", err)
+	// 	os.Exit(1)
+	// }
 
-	// Build the output file path
-	snapshotOut := filepath.Join(snapshotDir, "snapshot-"+time.Now().Format("20060102-150405")+".json")
+	// // Build the output file path
+	// snapshotOut := filepath.Join(snapshotDir, "snapshot-"+time.Now().Format("20060102-150405")+".json")
 
-	// Write the snapshot JSON
-	if err := writeJSON(snapshotOut, snapResults); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to write snapshot file: %v\n", err)
-		os.Exit(1)
-	}
+	// // Write the snapshot JSON
+	// if err := writeJSON(snapshotOut, snapResults); err != nil {
+	// 	fmt.Fprintf(os.Stderr, "Failed to write snapshot file: %v\n", err)
+	// 	os.Exit(1)
+	// }
 
-	fmt.Printf("Snapshot written to %s\n", snapshotOut)
+	// fmt.Printf("Snapshot written to %s\n", snapshotOut)
 
 	// Pause on Windows (optional interactive behavior)
 	if os := runtime.GOOS; os == "windows" {
