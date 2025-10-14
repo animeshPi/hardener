@@ -7,22 +7,22 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"time"
 
 	"github.com/animeshPi/hardener/utils"
-	"github.com/animeshPi/hardener/utils/admin"
 	policies "github.com/animeshPi/hardener/utils/policy"
 )
 
 func EnsureElevatedOrRelaunch() error {
-	elevated, err := admin.IsElevated()
+	elevated, err := utils.IsElevated()
 	if err != nil {
 		return err
 	}
 	if elevated {
 		return nil
 	}
-	if err := admin.RequestElevation(); err != nil {
+	if err := utils.RequestElevation(); err != nil {
 		return err
 	}
 	// If elevation was successfully requested, the elevated copy should take over.
@@ -106,10 +106,10 @@ func main() {
 	fmt.Printf("Snapshot written to %s\n", snapshotOut)
 
 	// Pause on Windows (optional interactive behavior)
-	// if os := runtime.GOOS; os == "windows" {
-	// 	fmt.Println("Press Enter to exit...")
-	// 	fmt.Scanln()
-	// }
+	if os := runtime.GOOS; os == "windows" {
+		fmt.Println("Press Enter to exit...")
+		fmt.Scanln()
+	}
 }
 
 func valueOrNil(b *bool) any {

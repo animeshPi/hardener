@@ -1,0 +1,324 @@
+[
+  {
+    "policy_id": "LIN-1.a.i",
+    "title": "Ensure cramfs kernel module is not available",
+    "kind": "bash",
+    "raw": "{\"module\":\"cramfs\",\"loaded\":false,\"rule\":\"insmod /lib/modules/6.6.87.2-microsoft-standard-WSL2/kernel/fs/cramfs/cramfs.ko \"}",
+    "parsed": {
+      "loaded": false,
+      "module": "cramfs",
+      "rule": "insmod /lib/modules/6.6.87.2-microsoft-standard-WSL2/kernel/fs/cramfs/cramfs.ko "
+    }
+  },
+  {
+    "policy_id": "LIN-1.a.ii",
+    "title": "Ensure freevxfs kernel module is not available",
+    "kind": "bash",
+    "raw": "{\"module\":\"freevxfs\",\"loaded\":false,\"rule\":\"\"}",
+    "parsed": {
+      "loaded": false,
+      "module": "freevxfs",
+      "rule": ""
+    }
+  },
+  {
+    "policy_id": "LIN-1.a.iii",
+    "title": "Ensure hfs kernel module is not available",
+    "kind": "bash",
+    "raw": "{\"module\":\"hfs\",\"loaded\":false,\"rule\":\"\"}",
+    "parsed": {
+      "loaded": false,
+      "module": "hfs",
+      "rule": ""
+    }
+  },
+  {
+    "policy_id": "LIN-1.a.iv",
+    "title": "Ensure hfsplus kernel module is not available",
+    "kind": "bash",
+    "raw": "{\"module\":\"hfsplus\",\"loaded\":false,\"rule\":\"\"}",
+    "parsed": {
+      "loaded": false,
+      "module": "hfsplus",
+      "rule": ""
+    }
+  },
+  {
+    "policy_id": "LIN-1.a.v",
+    "title": "Ensure jffs2 kernel module is not available",
+    "kind": "bash",
+    "raw": "{\"module\":\"jffs2\",\"loaded\":false,\"rule\":\"\"}",
+    "parsed": {
+      "loaded": false,
+      "module": "jffs2",
+      "rule": ""
+    }
+  },
+  {
+    "policy_id": "LIN-1.a.vi",
+    "title": "Ensure overlayfs kernel module is not available",
+    "kind": "bash",
+    "raw": "{\"module\":\"overlay\",\"loaded\":false,\"rule\":\"\"}",
+    "parsed": {
+      "loaded": false,
+      "module": "overlay",
+      "rule": ""
+    }
+  },
+  {
+    "policy_id": "LIN-1.a.vii",
+    "title": "Ensure squashfs kernel module is not available",
+    "kind": "bash",
+    "raw": "{\"module\":\"squashfs\",\"loaded\":false,\"rule\":\"\"}",
+    "parsed": {
+      "loaded": false,
+      "module": "squashfs",
+      "rule": ""
+    }
+  },
+  {
+    "policy_id": "LIN-1.a.viii",
+    "title": "Ensure udf kernel module is not available",
+    "kind": "bash",
+    "raw": "{\"module\":\"udf\",\"loaded\":false,\"rule\":\"\"}",
+    "parsed": {
+      "loaded": false,
+      "module": "udf",
+      "rule": ""
+    }
+  },
+  {
+    "policy_id": "LIN-1.a.ix",
+    "title": "Ensure usb-storage kernel module is not available",
+    "kind": "bash",
+    "raw": "{\"module\":\"usb-storage\",\"loaded\":false,\"rule\":\"insmod /lib/modules/6.6.87.2-microsoft-standard-WSL2/kernel/drivers/usb/common/usb-common.ko \ninsmod /lib/modules/6.6.87.2-microsoft-standard-WSL2/kernel/drivers/usb/core/usbcore.ko \ninsmod /lib/modules/6.6.87.2-microsoft-standard-WSL2/kernel/drivers/usb/storage/usb-storage.ko \"}"
+  },
+  {
+    "policy_id": "LIN-1.b.i",
+    "title": "Ensure /tmp is a separate partition",
+    "kind": "bash",
+    "raw": "{\"mounted\":false}",
+    "parsed": {
+      "mounted": false
+    }
+  },
+  {
+    "policy_id": "LIN-1.b.ii",
+    "title": "Ensure nodev option set on /tmp partition",
+    "kind": "bash",
+    "raw": "{\"options\":\"\"}",
+    "parsed": {
+      "options": ""
+    }
+  },
+  {
+    "policy_id": "LIN-1.b.iii",
+    "title": "Ensure nosuid option set on /tmp partition",
+    "kind": "bash",
+    "raw": "{\"options\":\"\"}",
+    "parsed": {
+      "options": ""
+    }
+  },
+  {
+    "policy_id": "LIN-1.b.iv",
+    "title": "Ensure noexec option set on /tmp partition",
+    "kind": "bash",
+    "raw": "{\"options\":\"\"}",
+    "parsed": {
+      "options": ""
+    }
+  },
+  {
+    "policy_id": "LIN-1.c.i",
+    "title": "Ensure /dev/shm is a separate (tmpfs) partition",
+    "kind": "bash",
+    "raw": "{\"mounted\":true,\"source\":\"none\",\"fstype\":\"tmpfs\",\"options\":\"rw,nosuid,nodev,noatime\"}",
+    "parsed": {
+      "fstype": "tmpfs",
+      "mounted": true,
+      "options": "rw,nosuid,nodev,noatime",
+      "source": "none"
+    }
+  },
+  {
+    "policy_id": "LIN-1.c.ii",
+    "title": "Ensure nodev option set on /dev/shm",
+    "kind": "bash",
+    "raw": "{\"options\":\"rw,nosuid,nodev,noatime\"}",
+    "parsed": {
+      "options": "rw,nosuid,nodev,noatime"
+    }
+  },
+  {
+    "policy_id": "LIN-1.c.iii",
+    "title": "Ensure nosuid option set on /dev/shm",
+    "kind": "bash",
+    "raw": "{\"options\":\"rw,nosuid,nodev,noatime\"}",
+    "parsed": {
+      "options": "rw,nosuid,nodev,noatime"
+    }
+  },
+  {
+    "policy_id": "LIN-1.c.iv",
+    "title": "Ensure noexec option set on /dev/shm",
+    "kind": "bash",
+    "raw": "{\"options\":\"rw,nosuid,nodev,noatime\"}",
+    "parsed": {
+      "options": "rw,nosuid,nodev,noatime"
+    }
+  },
+  {
+    "policy_id": "LIN-1.d.i",
+    "title": "Ensure separate partition exists for /home",
+    "kind": "bash",
+    "raw": "{\"mounted\":false}",
+    "parsed": {
+      "mounted": false
+    }
+  },
+  {
+    "policy_id": "LIN-1.d.ii",
+    "title": "Ensure nodev option set on /home",
+    "kind": "bash",
+    "raw": "{\"options\":\"\"}",
+    "parsed": {
+      "options": ""
+    }
+  },
+  {
+    "policy_id": "LIN-1.d.iii",
+    "title": "Ensure nosuid option set on /home",
+    "kind": "bash",
+    "raw": "{\"options\":\"\"}",
+    "parsed": {
+      "options": ""
+    }
+  },
+  {
+    "policy_id": "LIN-1.e.i",
+    "title": "Ensure separate partition exists for /var",
+    "kind": "bash",
+    "raw": "{\"mounted\":false}",
+    "parsed": {
+      "mounted": false
+    }
+  },
+  {
+    "policy_id": "LIN-1.e.ii",
+    "title": "Ensure nodev option set on /var",
+    "kind": "bash",
+    "raw": "{\"options\":\"\"}",
+    "parsed": {
+      "options": ""
+    }
+  },
+  {
+    "policy_id": "LIN-1.e.iii",
+    "title": "Ensure nosuid option set on /var",
+    "kind": "bash",
+    "raw": "{\"options\":\"\"}",
+    "parsed": {
+      "options": ""
+    }
+  },
+  {
+    "policy_id": "LIN-1.f.i",
+    "title": "Ensure separate partition exists for /var/tmp",
+    "kind": "bash",
+    "raw": "{\"mounted\":false}",
+    "parsed": {
+      "mounted": false
+    }
+  },
+  {
+    "policy_id": "LIN-1.f.ii",
+    "title": "Ensure nodev option set on /var/tmp",
+    "kind": "bash",
+    "raw": "{\"options\":\"\"}",
+    "parsed": {
+      "options": ""
+    }
+  },
+  {
+    "policy_id": "LIN-1.f.iii",
+    "title": "Ensure nosuid option set on /var/tmp",
+    "kind": "bash",
+    "raw": "{\"options\":\"\"}",
+    "parsed": {
+      "options": ""
+    }
+  },
+  {
+    "policy_id": "LIN-1.f.iv",
+    "title": "Ensure noexec option set on /var/tmp",
+    "kind": "bash",
+    "raw": "{\"options\":\"\"}",
+    "parsed": {
+      "options": ""
+    }
+  },
+  {
+    "policy_id": "LIN-1.g.i",
+    "title": "Ensure separate partition exists for /var/log",
+    "kind": "bash",
+    "raw": "{\"mounted\":false}",
+    "parsed": {
+      "mounted": false
+    }
+  },
+  {
+    "policy_id": "LIN-1.g.ii",
+    "title": "Ensure nodev option set on /var/log",
+    "kind": "bash",
+    "raw": "{\"options\":\"\"}",
+    "parsed": {
+      "options": ""
+    }
+  },
+  {
+    "policy_id": "LIN-1.g.iii",
+    "title": "Ensure nosuid option set on /var/log",
+    "kind": "bash",
+    "raw": "{\"options\":\"\"}",
+    "parsed": {
+      "options": ""
+    }
+  },
+  {
+    "policy_id": "LIN-1.g.iv",
+    "title": "Ensure noexec option set on /var/log",
+    "kind": "bash",
+    "raw": "{\"options\":\"\"}",
+    "parsed": {
+      "options": ""
+    }
+  },
+  {
+    "policy_id": "LIN-1.h.i",
+    "title": "Ensure separate partition exists for /var/log/audit",
+    "kind": "bash",
+    "raw": "{\"mounted\":false}",
+    "parsed": {
+      "mounted": false
+    }
+  },
+  {
+    "policy_id": "LIN-1.h.ii",
+    "title": "Ensure nodev option set on /var/log/audit",
+    "kind": "bash",
+    "raw": "{\"options\":\"\"}",
+    "parsed": {
+      "options": ""
+    }
+  },
+  {
+    "policy_id": "LIN-1.h.iii",
+    "title": "Ensure nosuid option set on /var/log/audit",
+    "kind": "bash",
+    "raw": "{\"options\":\"\"}",
+    "parsed": {
+      "options": ""
+    }
+  }
+]

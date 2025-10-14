@@ -1,112 +1,112 @@
 os: windows
 policies:
-  # 1.a Password Policy
   - id: "WIN-1.a.i"
     title: "Enforce password history: 24 or more passwords"
     category: "Account Policies"
     subcategory: "Password Policy"
     severity: high
-    levels: ["basic", "moderate", "strict"]
-    tags: ["auth-basics", "password"]
+    levels: ["basic","moderate","strict"]
+    tags: ["auth-basics","password"]
     check:
       kind: powershell
       timeout: 60
       script: |
-        $e=24; secedit /export /cfg $env:TEMP\secpol.cfg|Out-Null; $v=(Get-Content "$env:TEMP\secpol.cfg"|%{if($_ -match '^PasswordHistorySize\s*=\s*(\d+)'){[int]$Matches[1]}}|Select-Object -First 1); if(-not $v){$v=0}; [pscustomobject]@{compliant=($v -ge $e);current=$v;expected=$e;details="PasswordHistorySize=$v"}|ConvertTo-Json -Compress
+        $e=24; try{secedit /export /cfg $env:TEMP\secpol.cfg|Out-Null; $v=(Get-Content "$env:TEMP\secpol.cfg"|%{if($_-match'^PasswordHistorySize\s*=\s*(\d+)'){[int]$Matches[1]}}|select -f 1); if(-not $v){$v=0}; [pscustomobject]@{compliant=($v -ge $e);current=$v;expected=$e;source="secedit";details="PasswordHistorySize=$v"}|ConvertTo-Json -Compress} catch{$l=(cmd /c 'net accounts'|Select-String 'Length of password history maintained'|select -f 1).ToString(); $v=($l -match '(\d+)\s*$')?[int]$Matches[1]:0; [pscustomobject]@{compliant=($v -ge $e);current=$v;expected=$e;source="net accounts";details=$l}|ConvertTo-Json -Compress}
     snapshot:
       kind: powershell
       script: |
-        secedit /export /cfg $env:TEMP\secpol.cfg|Out-Null; $v=(Get-Content "$env:TEMP\secpol.cfg"|%{if($_ -match '^PasswordHistorySize\s*=\s*(\d+)'){[int]$Matches[1]}}|Select-Object -First 1); if(-not $v){$v=0}; [pscustomobject]@{PasswordHistorySize=$v}|ConvertTo-Json -Compress
+        try{secedit /export /cfg $env:TEMP\secpol.cfg|Out-Null; $v=(Get-Content "$env:TEMP\secpol.cfg"|%{if($_-match'^PasswordHistorySize\s*=\s*(\d+)'){[int]$Matches[1]}}|select -f 1); if(-not $v){$v=0}; [pscustomobject]@{PasswordHistorySize=$v;source="secedit"}|ConvertTo-Json -Compress} catch{$l=(cmd /c 'net accounts'|Select-String 'Length of password history maintained'|select -f 1).ToString(); $v=($l -match '(\d+)\s*$')?[int]$Matches[1]:0; [pscustomobject]@{PasswordHistorySize=$v;source="net accounts"}|ConvertTo-Json -Compress}
     remediate:
       kind: powershell
       script: |
-        $e=24; $p="$env:TEMP\secpol.inf"; Set-Content -Path $p -Encoding ASCII -Value "[System Access]`nPasswordHistorySize=$e"; secedit /configure /db "$env:windir\security\local.sdb" /cfg $p /areas SECURITYPOLICY|Out-Null; [pscustomobject]@{success=$true;details="Set PasswordHistorySize=$e"}|ConvertTo-Json -Compress
+        $e=24; try{$p="$env:TEMP\secpol.inf"; Set-Content -Path $p -Encoding ASCII -Value "[System Access]`nPasswordHistorySize=$e"; secedit /configure /db "$env:windir\security\local.sdb" /cfg $p /areas SECURITYPOLICY|Out-Null; [pscustomobject]@{success=$true;method="secedit";details="Set PasswordHistorySize=$e"}|ConvertTo-Json -Compress} catch{cmd /c "net accounts /uniquepw:$e"|Out-Null; [pscustomobject]@{success=$true;method="net accounts";details="Set uniquepw=$e"}|ConvertTo-Json -Compress}
     rollback:
       kind: powershell
       script: |
-        $prev=(Get-Content -Raw)|ConvertFrom-Json; $v=[int]$prev.PasswordHistorySize; $p="$env:TEMP\secpol.inf"; Set-Content -Path $p -Encoding ASCII -Value "[System Access]`nPasswordHistorySize=$v"; secedit /configure /db "$env:windir\security\local.sdb" /cfg $p /areas SECURITYPOLICY|Out-Null; [pscustomobject]@{success=$true;details="Restored PasswordHistorySize=$v"}|ConvertTo-Json -Compress
+        $prev=(Get-Content -Raw|ConvertFrom-Json); $v=[int]$prev.PasswordHistorySize; try{$p="$env:TEMP\secpol.inf"; Set-Content -Path $p -Encoding ASCII -Value "[System Access]`nPasswordHistorySize=$v"; secedit /configure /db "$env:windir\security\local.sdb" /cfg $p /areas SECURITYPOLICY|Out-Null; [pscustomobject]@{success=$true;method="secedit";details="Restored PasswordHistorySize=$v"}|ConvertTo-Json -Compress} catch{cmd /c "net accounts /uniquepw:$v"|Out-Null; [pscustomobject]@{success=$true;method="net accounts";details="Restored uniquepw=$v"}|ConvertTo-Json -Compress}
+    notes: "Requires admin privileges. Domain GPO may override local settings."
 
   - id: "WIN-1.a.ii"
     title: "Maximum password age: 90 days or fewer, not 0"
     category: "Account Policies"
     subcategory: "Password Policy"
     severity: high
-    levels: ["basic", "moderate", "strict"]
+    levels: ["basic","moderate","strict"]
     tags: ["password"]
     check:
       kind: powershell
       timeout: 60
       script: |
-        $e=90; secedit /export /cfg $env:TEMP\secpol.cfg|Out-Null; $v=(gc "$env:TEMP\secpol.cfg"|%{if($_ -match '^MaximumPasswordAge\s*=\s*(-?\d+)'){[int]$Matches[1]}}|select -first 1); if(-not $v){$v=0}; [pscustomobject]@{compliant=($v -le $e -and $v -ne 0);current=$v;expected="<=$e and !=0";details="MaximumPasswordAge=$v"}|ConvertTo-Json -Compress
+        $e=90; try{secedit /export /cfg $env:TEMP\secpol.cfg|Out-Null; $v=(gc "$env:TEMP\secpol.cfg"|%{if($_-match'^MaximumPasswordAge\s*=\s*(-?\d+)'){[int]$Matches[1]}}|select -f 1); if(-not $v){$v=0}; [pscustomobject]@{compliant=($v -le $e -and $v -ne 0);current=$v;expected="<=$e and !=0";source="secedit";details="MaximumPasswordAge=$v"}|ConvertTo-Json -Compress} catch{$l=(cmd /c 'net accounts'|Select-String 'Maximum password age'|select -f 1).ToString(); $v=($l -match '(-?\d+)\s*$')?[int]$Matches[1]:0; [pscustomobject]@{compliant=($v -le $e -and $v -ne 0);current=$v;expected="<=$e and !=0";source="net accounts";details=$l}|ConvertTo-Json -Compress}
     snapshot:
       kind: powershell
       script: |
-        secedit /export /cfg $env:TEMP\secpol.cfg|Out-Null; $v=(gc "$env:TEMP\secpol.cfg"|%{if($_ -match '^MaximumPasswordAge\s*=\s*(-?\d+)'){[int]$Matches[1]}}|select -first 1); if(-not $v){$v=0}; [pscustomobject]@{MaximumPasswordAge=$v}|ConvertTo-Json -Compress
+        try{secedit /export /cfg $env:TEMP\secpol.cfg|Out-Null; $v=(gc "$env:TEMP\secpol.cfg"|%{if($_-match'^MaximumPasswordAge\s*=\s*(-?\d+)'){[int]$Matches[1]}}|select -f 1); if(-not $v){$v=0}; [pscustomobject]@{MaximumPasswordAge=$v;source="secedit"}|ConvertTo-Json -Compress} catch{$l=(cmd /c 'net accounts'|Select-String 'Maximum password age'|select -f 1).ToString(); $v=($l -match '(-?\d+)\s*$')?[int]$Matches[1]:0; [pscustomobject]@{MaximumPasswordAge=$v;source="net accounts"}|ConvertTo-Json -Compress}
     remediate:
       kind: powershell
       script: |
-        $e=90; $p="$env:TEMP\secpol.inf"; sc $p -Encoding ASCII "[System Access]`nMaximumPasswordAge=$e"; secedit /configure /db "$env:windir\security\local.sdb" /cfg $p /areas SECURITYPOLICY|Out-Null; [pscustomobject]@{success=$true;details="Set MaximumPasswordAge=$e"}|ConvertTo-Json -Compress
+        $e=90; try{$p="$env:TEMP\secpol.inf"; sc $p -Encoding ASCII "[System Access]`nMaximumPasswordAge=$e"; secedit /configure /db "$env:windir\security\local.sdb" /cfg $p /areas SECURITYPOLICY|Out-Null; [pscustomobject]@{success=$true;method="secedit";details="Set MaximumPasswordAge=$e"}|ConvertTo-Json -Compress} catch{$arg=if($e -le 0){'UNLIMITED'}else{$e}; cmd /c "net accounts /maxpwage:$arg"|Out-Null; [pscustomobject]@{success=$true;method="net accounts";details="Set maxpwage=$arg"}|ConvertTo-Json -Compress}
     rollback:
       kind: powershell
       script: |
-        $prev=(gc -raw -enc UTF8 -)|ConvertFrom-Json; $v=[int]$prev.MaximumPasswordAge; $p="$env:TEMP\secpol.inf"; sc $p -Encoding ASCII "[System Access]`nMaximumPasswordAge=$v"; secedit /configure /db "$env:windir\security\local.sdb" /cfg $p /areas SECURITYPOLICY|Out-Null; [pscustomobject]@{success=$true;details="Restored MaximumPasswordAge=$v"}|ConvertTo-Json -Compress
+        $prev=(gc -raw -enc UTF8 -)|ConvertFrom-Json; $v=[int]$prev.MaximumPasswordAge; try{$p="$env:TEMP\secpol.inf"; sc $p -Encoding ASCII "[System Access]`nMaximumPasswordAge=$v"; secedit /configure /db "$env:windir\security\local.sdb" /cfg $p /areas SECURITYPOLICY|Out-Null; [pscustomobject]@{success=$true;method="secedit";details="Restored MaximumPasswordAge=$v"}|ConvertTo-Json -Compress} catch{$arg=if($v -le 0){'UNLIMITED'}else{$v}; cmd /c "net accounts /maxpwage:$arg"|Out-Null; [pscustomobject]@{success=$true;method="net accounts";details="Restored maxpwage=$arg"}|ConvertTo-Json -Compress}
 
   - id: "WIN-1.a.iii"
     title: "Minimum password age: 1 day or more"
     category: "Account Policies"
     subcategory: "Password Policy"
     severity: high
-    levels: ["basic", "moderate", "strict"]
+    levels: ["basic","moderate","strict"]
     tags: ["password"]
     check:
       kind: powershell
       timeout: 60
       script: |
-        $e=1; secedit /export /cfg $env:TEMP\secpol.cfg|Out-Null; $v=(gc "$env:TEMP\secpol.cfg"|%{if($_ -match '^MinimumPasswordAge\s*=\s*(\d+)'){[int]$Matches[1]}}|select -first 1); if(-not $v){$v=0}; [pscustomobject]@{compliant=($v -ge $e);current=$v;expected=$e;details="MinimumPasswordAge=$v"}|ConvertTo-Json -Compress
+        $e=1; try{secedit /export /cfg $env:TEMP\secpol.cfg|Out-Null; $v=(gc "$env:TEMP\secpol.cfg"|%{if($_-match'^MinimumPasswordAge\s*=\s*(\d+)'){[int]$Matches[1]}}|select -f 1); if(-not $v){$v=0}; [pscustomobject]@{compliant=($v -ge $e);current=$v;expected=$e;source="secedit";details="MinimumPasswordAge=$v"}|ConvertTo-Json -Compress} catch{$l=(cmd /c 'net accounts'|Select-String 'Minimum password age'|select -f 1).ToString(); $v=($l -match '(\d+)\s*$')?[int]$Matches[1]:0; [pscustomobject]@{compliant=($v -ge $e);current=$v;expected=$e;source="net accounts";details=$l}|ConvertTo-Json -Compress}
     snapshot:
       kind: powershell
       script: |
-        secedit /export /cfg $env:TEMP\secpol.cfg|Out-Null; $v=(gc "$env:TEMP\secpol.cfg"|%{if($_ -match '^MinimumPasswordAge\s*=\s*(\d+)'){[int]$Matches[1]}}|select -first 1); if(-not $v){$v=0}; [pscustomobject]@{MinimumPasswordAge=$v}|ConvertTo-Json -Compress
+        try{secedit /export /cfg $env:TEMP\secpol.cfg|Out-Null; $v=(gc "$env:TEMP\secpol.cfg"|%{if($_-match'^MinimumPasswordAge\s*=\s*(\d+)'){[int]$Matches[1]}}|select -f 1); if(-not $v){$v=0}; [pscustomobject]@{MinimumPasswordAge=$v;source="secedit"}|ConvertTo-Json -Compress} catch{$l=(cmd /c 'net accounts'|Select-String 'Minimum password age'|select -f 1).ToString(); $v=($l -match '(\d+)\s*$')?[int]$Matches[1]:0; [pscustomobject]@{MinimumPasswordAge=$v;source="net accounts"}|ConvertTo-Json -Compress}
     remediate:
       kind: powershell
       script: |
-        $e=1; $p="$env:TEMP\secpol.inf"; sc $p -Encoding ASCII "[System Access]`nMinimumPasswordAge=$e"; secedit /configure /db "$env:windir\security\local.sdb" /cfg $p /areas SECURITYPOLICY|Out-Null; [pscustomobject]@{success=$true;details="Set MinimumPasswordAge=$e"}|ConvertTo-Json -Compress
+        $e=1; try{$p="$env:TEMP\secpol.inf"; sc $p -Encoding ASCII "[System Access]`nMinimumPasswordAge=$e"; secedit /configure /db "$env:windir\security\local.sdb" /cfg $p /areas SECURITYPOLICY|Out-Null; [pscustomobject]@{success=$true;method="secedit";details="Set MinimumPasswordAge=$e"}|ConvertTo-Json -Compress} catch{cmd /c "net accounts /minpwage:$e"|Out-Null; [pscustomobject]@{success=$true;method="net accounts";details="Set minpwage=$e"}|ConvertTo-Json -Compress}
     rollback:
       kind: powershell
       script: |
-        $prev=(gc -raw -)|ConvertFrom-Json; $v=[int]$prev.MinimumPasswordAge; $p="$env:TEMP\secpol.inf"; sc $p -Encoding ASCII "[System Access]`nMinimumPasswordAge=$v"; secedit /configure /db "$env:windir\security\local.sdb" /cfg $p /areas SECURITYPOLICY|Out-Null; [pscustomobject]@{success=$true;details="Restored MinimumPasswordAge=$v"}|ConvertTo-Json -Compress
+        $prev=(gc -raw -)|ConvertFrom-Json; $v=[int]$prev.MinimumPasswordAge; try{$p="$env:TEMP\secpol.inf"; sc $p -Encoding ASCII "[System Access]`nMinimumPasswordAge=$v"; secedit /configure /db "$env:windir\security\local.sdb" /cfg $p /areas SECURITYPOLICY|Out-Null; [pscustomobject]@{success=$true;method="secedit";details="Restored MinimumPasswordAge=$v"}|ConvertTo-Json -Compress} catch{cmd /c "net accounts /minpwage:$v"|Out-Null; [pscustomobject]@{success=$true;method="net accounts";details="Restored minpwage=$v"}|ConvertTo-Json -Compress}
 
   - id: "WIN-1.a.iv"
     title: "Minimum password length: 12+ characters"
     category: "Account Policies"
     subcategory: "Password Policy"
     severity: high
-    levels: ["basic", "moderate", "strict"]
+    levels: ["basic","moderate","strict"]
     tags: ["password"]
     check:
       kind: powershell
       timeout: 60
       script: |
-        $e=12; secedit /export /cfg $env:TEMP\secpol.cfg|Out-Null; $v=(gc "$env:TEMP\secpol.cfg"|%{if($_ -match '^MinimumPasswordLength\s*=\s*(\d+)'){[int]$Matches[1]}}|select -first 1); if(-not $v){$v=0}; [pscustomobject]@{compliant=($v -ge $e);current=$v;expected=$e;details="MinimumPasswordLength=$v"}|ConvertTo-Json -Compress
+        $e=12; try{secedit /export /cfg $env:TEMP\secpol.cfg|Out-Null; $v=(gc "$env:TEMP\secpol.cfg"|%{if($_-match'^MinimumPasswordLength\s*=\s*(\d+)'){[int]$Matches[1]}}|select -f 1); if(-not $v){$v=0}; [pscustomobject]@{compliant=($v -ge $e);current=$v;expected=$e;source="secedit";details="MinimumPasswordLength=$v"}|ConvertTo-Json -Compress} catch{$l=(cmd /c 'net accounts'|Select-String 'Minimum password length'|select -f 1).ToString(); $v=($l -match '(\d+)\s*$')?[int]$Matches[1]:0; [pscustomobject]@{compliant=($v -ge $e);current=$v;expected=$e;source="net accounts";details=$l}|ConvertTo-Json -Compress}
     snapshot:
       kind: powershell
       script: |
-        secedit /export /cfg $env:TEMP\secpol.cfg|Out-Null; $v=(gc "$env:TEMP\secpol.cfg"|%{if($_ -match '^MinimumPasswordLength\s*=\s*(\d+)'){[int]$Matches[1]}}|select -first 1); if(-not $v){$v=0}; [pscustomobject]@{MinimumPasswordLength=$v}|ConvertTo-Json -Compress
+        try{secedit /export /cfg $env:TEMP\secpol.cfg|Out-Null; $v=(gc "$env:TEMP\secpol.cfg"|%{if($_-match'^MinimumPasswordLength\s*=\s*(\d+)'){[int]$Matches[1]}}|select -f 1); if(-not $v){$v=0}; [pscustomobject]@{MinimumPasswordLength=$v;source="secedit"}|ConvertTo-Json -Compress} catch{$l=(cmd /c 'net accounts'|Select-String 'Minimum password length'|select -f 1).ToString(); $v=($l -match '(\d+)\s*$')?[int]$Matches[1]:0; [pscustomobject]@{MinimumPasswordLength=$v;source="net accounts"}|ConvertTo-Json -Compress}
     remediate:
       kind: powershell
       script: |
-        $e=12; $p="$env:TEMP\secpol.inf"; sc $p -Encoding ASCII "[System Access]`nMinimumPasswordLength=$e"; secedit /configure /db "$env:windir\security\local.sdb" /cfg $p /areas SECURITYPOLICY|Out-Null; [pscustomobject]@{success=$true;details="Set MinimumPasswordLength=$e"}|ConvertTo-Json -Compress
+        $e=12; try{$p="$env:TEMP\secpol.inf"; sc $p -Encoding ASCII "[System Access]`nMinimumPasswordLength=$e"; secedit /configure /db "$env:windir\security\local.sdb" /cfg $p /areas SECURITYPOLICY|Out-Null; [pscustomobject]@{success=$true;method="secedit";details="Set MinimumPasswordLength=$e"}|ConvertTo-Json -Compress} catch{cmd /c "net accounts /minpwlen:$e"|Out-Null; [pscustomobject]@{success=$true;method="net accounts";details="Set minpwlen=$e"}|ConvertTo-Json -Compress}
     rollback:
       kind: powershell
       script: |
-        $prev=(gc -raw -)|ConvertFrom-Json; $v=[int]$prev.MinimumPasswordLength; $p="$env:TEMP\secpol.inf"; sc $p -Encoding ASCII "[System Access]`nMinimumPasswordLength=$v"; secedit /configure /db "$env:windir\security\local.sdb" /cfg $p /areas SECURITYPOLICY|Out-Null; [pscustomobject]@{success=$true;details="Restored MinimumPasswordLength=$v"}|ConvertTo-Json -Compress
+        $prev=(gc -raw -)|ConvertFrom-Json; $v=[int]$prev.MinimumPasswordLength; try{$p="$env:TEMP\secpol.inf"; sc $p -Encoding ASCII "[System Access]`nMinimumPasswordLength=$v"; secedit /configure /db "$env:windir\security\local.sdb" /cfg $p /areas SECURITYPOLICY|Out-Null; [pscustomobject]@{success=$true;method="secedit";details="Restored MinimumPasswordLength=$v"}|ConvertTo-Json -Compress} catch{cmd /c "net accounts /minpwlen:$v"|Out-Null; [pscustomobject]@{success=$true;method="net accounts";details="Restored minpwlen=$v"}|ConvertTo-Json -Compress}
 
   - id: "WIN-1.a.v"
     title: "Password must meet complexity requirements: Enabled"
     category: "Account Policies"
     subcategory: "Password Policy"
     severity: high
-    levels: ["basic", "moderate", "strict"]
+    levels: ["basic","moderate","strict"]
     tags: ["password"]
     check:
       kind: powershell
@@ -131,7 +131,7 @@ policies:
     category: "Account Policies"
     subcategory: "Password Policy"
     severity: high
-    levels: ["basic", "moderate", "strict"]
+    levels: ["basic","moderate","strict"]
     tags: ["password"]
     check:
       kind: powershell
@@ -151,63 +151,62 @@ policies:
       script: |
         $prev=(gc -raw -)|ConvertFrom-Json; sp 'HKLM:\SYSTEM\CurrentControlSet\Control\Lsa' 'ClearTextPassword' ([int]$prev.ClearTextPassword) -Type DWord; [pscustomobject]@{success=$true;details="Restored ClearTextPassword=$([int]$prev.ClearTextPassword)"}|ConvertTo-Json -Compress
 
-  # 1.b Account Lockout Policy
   - id: "WIN-1.b.i"
     title: "Account lockout duration: 15+ minutes"
     category: "Account Policies"
     subcategory: "Account Lockout Policy"
     severity: high
-    levels: ["basic", "moderate", "strict"]
+    levels: ["basic","moderate","strict"]
     tags: ["lockout"]
     check:
       kind: powershell
       timeout: 60
       script: |
-        $e=15; secedit /export /cfg $env:TEMP\secpol.cfg|Out-Null; $v=(gc "$env:TEMP\secpol.cfg"|%{if($_ -match '^LockoutDuration\s*=\s*(\d+)'){[int]$Matches[1]}}|select -first 1); if(-not $v){$v=0}; [pscustomobject]@{compliant=($v -ge $e);current=$v;expected=$e;details="LockoutDuration=$v"}|ConvertTo-Json -Compress
+        $e=15; try{secedit /export /cfg $env:TEMP\secpol.cfg|Out-Null; $v=(gc "$env:TEMP\secpol.cfg"|%{if($_-match'^LockoutDuration\s*=\s*(\d+)'){[int]$Matches[1]}}|select -f 1); if(-not $v){$v=0}; [pscustomobject]@{compliant=($v -ge $e);current=$v;expected=$e;source="secedit";details="LockoutDuration=$v"}|ConvertTo-Json -Compress} catch{$l=(cmd /c 'net accounts'|Select-String 'Lockout duration'|select -f 1).ToString(); $v=($l -match '(\d+)\s*$')?[int]$Matches[1]:0; [pscustomobject]@{compliant=($v -ge $e);current=$v;expected=$e;source="net accounts";details=$l}|ConvertTo-Json -Compress}
     snapshot:
       kind: powershell
       script: |
-        secedit /export /cfg $env:TEMP\secpol.cfg|Out-Null; $v=(gc "$env:TEMP\secpol.cfg"|%{if($_ -match '^LockoutDuration\s*=\s*(\d+)'){[int]$Matches[1]}}|select -first 1); if(-not $v){$v=0}; [pscustomobject]@{LockoutDuration=$v}|ConvertTo-Json -Compress
+        try{secedit /export /cfg $env:TEMP\secpol.cfg|Out-Null; $v=(gc "$env:TEMP\secpol.cfg"|%{if($_-match'^LockoutDuration\s*=\s*(\d+)'){[int]$Matches[1]}}|select -f 1); if(-not $v){$v=0}; [pscustomobject]@{LockoutDuration=$v;source="secedit"}|ConvertTo-Json -Compress} catch{$l=(cmd /c 'net accounts'|Select-String 'Lockout duration'|select -f 1).ToString(); $v=($l -match '(\d+)\s*$')?[int]$Matches[1]:0; [pscustomobject]@{LockoutDuration=$v;source="net accounts"}|ConvertTo-Json -Compress}
     remediate:
       kind: powershell
       script: |
-        $e=15; $p="$env:TEMP\secpol.inf"; sc $p -Encoding ASCII "[System Access]`nLockoutDuration=$e"; secedit /configure /db "$env:windir\security\local.sdb" /cfg $p /areas SECURITYPOLICY|Out-Null; [pscustomobject]@{success=$true;details="Set LockoutDuration=$e"}|ConvertTo-Json -Compress
+        $e=15; try{$p="$env:TEMP\secpol.inf"; sc $p -Encoding ASCII "[System Access]`nLockoutDuration=$e"; secedit /configure /db "$env:windir\security\local.sdb" /cfg $p /areas SECURITYPOLICY|Out-Null; [pscustomobject]@{success=$true;method="secedit";details="Set LockoutDuration=$e"}|ConvertTo-Json -Compress} catch{cmd /c "net accounts /lockoutduration:$e"|Out-Null; [pscustomobject]@{success=$true;method="net accounts";details="Set lockoutduration=$e"}|ConvertTo-Json -Compress}
     rollback:
       kind: powershell
       script: |
-        $prev=(gc -raw -)|ConvertFrom-Json; $v=[int]$prev.LockoutDuration; $p="$env:TEMP\secpol.inf"; sc $p -Encoding ASCII "[System Access]`nLockoutDuration=$v"; secedit /configure /db "$env:windir\security\local.sdb" /cfg $p /areas SECURITYPOLICY|Out-Null; [pscustomobject]@{success=$true;details="Restored LockoutDuration=$v"}|ConvertTo-Json -Compress
+        $prev=(gc -raw -)|ConvertFrom-Json; $v=[int]$prev.LockoutDuration; try{$p="$env:TEMP\secpol.inf"; sc $p -Encoding ASCII "[System Access]`nLockoutDuration=$v"; secedit /configure /db "$env:windir\security\local.sdb" /cfg $p /areas SECURITYPOLICY|Out-Null; [pscustomobject]@{success=$true;method="secedit";details="Restored LockoutDuration=$v"}|ConvertTo-Json -Compress} catch{cmd /c "net accounts /lockoutduration:$v"|Out-Null; [pscustomobject]@{success=$true;method="net accounts";details="Restored lockoutduration=$v"}|ConvertTo-Json -Compress}
 
   - id: "WIN-1.b.ii"
     title: "Account lockout threshold: 5 or fewer and not 0"
     category: "Account Policies"
     subcategory: "Account Lockout Policy"
     severity: high
-    levels: ["basic", "moderate", "strict"]
+    levels: ["basic","moderate","strict"]
     tags: ["lockout"]
     check:
       kind: powershell
       timeout: 60
       script: |
-        $e=5; secedit /export /cfg $env:TEMP\secpol.cfg|Out-Null; $v=(gc "$env:TEMP\secpol.cfg"|%{if($_ -match '^LockoutBadCount\s*=\s*(\d+)'){[int]$Matches[1]}}|select -first 1); if(-not $v){$v=0}; [pscustomobject]@{compliant=($v -le $e -and $v -ne 0);current=$v;expected="<=$e and !=0";details="LockoutBadCount=$v"}|ConvertTo-Json -Compress
+        $e=5; try{secedit /export /cfg $env:TEMP\secpol.cfg|Out-Null; $v=(gc "$env:TEMP\secpol.cfg"|%{if($_-match'^LockoutBadCount\s*=\s*(\d+)'){[int]$Matches[1]}}|select -f 1); if(-not $v){$v=0}; [pscustomobject]@{compliant=($v -le $e -and $v -ne 0);current=$v;expected="<=$e and !=0";source="secedit";details="LockoutBadCount=$v"}|ConvertTo-Json -Compress} catch{$l=(cmd /c 'net accounts'|Select-String 'Lockout threshold'|select -f 1).ToString(); $v=($l -match '(\d+)\s*$')?[int]$Matches[1]:0; [pscustomobject]@{compliant=($v -le $e -and $v -ne 0);current=$v;expected="<=$e and !=0";source="net accounts";details=$l}|ConvertTo-Json -Compress}
     snapshot:
       kind: powershell
       script: |
-        secedit /export /cfg $env:TEMP\secpol.cfg|Out-Null; $v=(gc "$env:TEMP\secpol.cfg"|%{if($_ -match '^LockoutBadCount\s*=\s*(\d+)'){[int]$Matches[1]}}|select -first 1); if(-not $v){$v=0}; [pscustomobject]@{LockoutBadCount=$v}|ConvertTo-Json -Compress
+        try{secedit /export /cfg $env:TEMP\secpol.cfg|Out-Null; $v=(gc "$env:TEMP\secpol.cfg"|%{if($_-match'^LockoutBadCount\s*=\s*(\d+)'){[int]$Matches[1]}}|select -f 1); if(-not $v){$v=0}; [pscustomobject]@{LockoutBadCount=$v;source="secedit"}|ConvertTo-Json -Compress} catch{$l=(cmd /c 'net accounts'|Select-String 'Lockout threshold'|select -f 1).ToString(); $v=($l -match '(\d+)\s*$')?[int]$Matches[1]:0; [pscustomobject]@{LockoutBadCount=$v;source="net accounts"}|ConvertTo-Json -Compress}
     remediate:
       kind: powershell
       script: |
-        $e=5; $p="$env:TEMP\secpol.inf"; sc $p -Encoding ASCII "[System Access]`nLockoutBadCount=$e"; secedit /configure /db "$env:windir\security\local.sdb" /cfg $p /areas SECURITYPOLICY|Out-Null; [pscustomobject]@{success=$true;details="Set LockoutBadCount=$e"}|ConvertTo-Json -Compress
+        $e=5; try{$p="$env:TEMP\secpol.inf"; sc $p -Encoding ASCII "[System Access]`nLockoutBadCount=$e"; secedit /configure /db "$env:windir\security\local.sdb" /cfg $p /areas SECURITYPOLICY|Out-Null; [pscustomobject]@{success=$true;method="secedit";details="Set LockoutBadCount=$e"}|ConvertTo-Json -Compress} catch{cmd /c "net accounts /lockoutthreshold:$e"|Out-Null; [pscustomobject]@{success=$true;method="net accounts";details="Set lockoutthreshold=$e"}|ConvertTo-Json -Compress}
     rollback:
       kind: powershell
       script: |
-        $prev=(gc -raw -)|ConvertFrom-Json; $v=[int]$prev.LockoutBadCount; $p="$env:TEMP\secpol.inf"; sc $p -Encoding ASCII "[System Access]`nLockoutBadCount=$v"; secedit /configure /db "$env:windir\security\local.sdb" /cfg $p /areas SECURITYPOLICY|Out-Null; [pscustomobject]@{success=$true;details="Restored LockoutBadCount=$v"}|ConvertTo-Json -Compress
+        $prev=(gc -raw -)|ConvertFrom-Json; $v=[int]$prev.LockoutBadCount; try{$p="$env:TEMP\secpol.inf"; sc $p -Encoding ASCII "[System Access]`nLockoutBadCount=$v"; secedit /configure /db "$env:windir\security\local.sdb" /cfg $p /areas SECURITYPOLICY|Out-Null; [pscustomobject]@{success=$true;method="secedit";details="Restored LockoutBadCount=$v"}|ConvertTo-Json -Compress} catch{cmd /c "net accounts /lockoutthreshold:$v"|Out-Null; [pscustomobject]@{success=$true;method="net accounts";details="Restored lockoutthreshold=$v"}|ConvertTo-Json -Compress}
 
   - id: "WIN-1.b.iii"
     title: "Allow Administrator account lockout: Enabled (Manual)"
     category: "Account Policies"
     subcategory: "Account Lockout Policy"
     severity: medium
-    levels: ["basic", "moderate", "strict"]
+    levels: ["basic","moderate","strict"]
     tags: ["manual"]
     check:
       kind: manual
@@ -222,13 +221,12 @@ policies:
       kind: manual
       script: "Manually revert to prior state."
 
-  # 3.b Interactive logon
   - id: "WIN-3.b.i"
     title: "Interactive logon: Do not require CTRL+ALT+DEL: Disabled (require CAD)"
     category: "Security Options"
     subcategory: "Interactive logon"
     severity: high
-    levels: ["basic", "moderate", "strict"]
+    levels: ["basic","moderate","strict"]
     tags: ["logon"]
     check:
       kind: powershell
@@ -253,7 +251,7 @@ policies:
     category: "Security Options"
     subcategory: "Interactive logon"
     severity: medium
-    levels: ["basic", "moderate", "strict"]
+    levels: ["basic","moderate","strict"]
     tags: ["logon"]
     check:
       kind: powershell
@@ -273,13 +271,12 @@ policies:
       script: |
         $prev=(gc -raw -)|ConvertFrom-Json; sp 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System' 'DontDisplayLastUserName' ([int]$prev.DontDisplayLastUserName) -Type DWord; [pscustomobject]@{success=$true;details="Restored DontDisplayLastUserName=$([int]$prev.DontDisplayLastUserName)"}|ConvertTo-Json -Compress
 
-  # 3.d Network security (NTLM)
   - id: "WIN-3.d.iv"
     title: "Minimum session security for NTLM SSP clients: Require NTLMv2 + 128-bit"
     category: "Security Options"
     subcategory: "Network security"
     severity: high
-    levels: ["basic", "moderate", "strict"]
+    levels: ["basic","moderate","strict"]
     tags: ["ntlm"]
     check:
       kind: powershell
@@ -304,7 +301,7 @@ policies:
     category: "Security Options"
     subcategory: "Network security"
     severity: high
-    levels: ["basic", "moderate", "strict"]
+    levels: ["basic","moderate","strict"]
     tags: ["ntlm"]
     check:
       kind: powershell
@@ -329,7 +326,7 @@ policies:
     category: "Security Options"
     subcategory: "Network security"
     severity: high
-    levels: ["basic", "moderate", "strict"]
+    levels: ["basic","moderate","strict"]
     tags: ["kerberos"]
     check:
       kind: powershell
@@ -349,13 +346,12 @@ policies:
       script: |
         $prev=(gc -raw -)|ConvertFrom-Json; sp 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\Kerberos\Parameters' 'SupportedEncryptionTypes' ([int]$prev.SupportedEncryptionTypes) -Type DWord; [pscustomobject]@{success=$true;details="Restored SupportedEncryptionTypes=$([int]$prev.SupportedEncryptionTypes)"}|ConvertTo-Json -Compress
 
-  # 5. Windows Defender Firewall profiles
   - id: "WIN-5.a.i"
     title: "Firewall Private profile: state ON"
     category: "Firewall"
     subcategory: "Private"
     severity: high
-    levels: ["basic", "moderate", "strict"]
+    levels: ["basic","moderate","strict"]
     tags: ["firewall"]
     check:
       kind: powershell
@@ -380,7 +376,7 @@ policies:
     category: "Firewall"
     subcategory: "Public"
     severity: high
-    levels: ["basic", "moderate", "strict"]
+    levels: ["basic","moderate","strict"]
     tags: ["firewall"]
     check:
       kind: powershell
@@ -400,13 +396,12 @@ policies:
       script: |
         $prev=(gc -raw -)|ConvertFrom-Json; cmd /c ("netsh advfirewall set publicprofile state "+$prev.PublicState)|Out-Null; [pscustomobject]@{success=$true;details=("Restored publicprofile state="+$prev.PublicState)}|ConvertTo-Json -Compress
 
-  # 6. Advanced Audit Policy (example)
   - id: "WIN-6.a.i"
     title: "Audit Credential Validation: Success and Failure"
     category: "Advanced Audit Policy"
     subcategory: "Account Logon"
     severity: high
-    levels: ["basic", "moderate", "strict"]
+    levels: ["basic","moderate","strict"]
     tags: ["audit"]
     check:
       kind: powershell
@@ -426,13 +421,12 @@ policies:
       script: |
         $prev=(gc -raw -)|ConvertFrom-Json; $s= if($prev.Raw -match '(?i)Success'){ 'enable' } else { 'disable' }; $f= if($prev.Raw -match '(?i)Failure'){ 'enable' } else { 'disable' }; auditpol /set /subcategory:"Credential Validation" /success:$s /failure:$f|Out-Null; [pscustomobject]@{success=$true;details=("Restored auditpol success="+$s+", failure="+$f)}|ConvertTo-Json -Compress
 
-  # 4.b System Services (example)
   - id: "WIN-4.b.x"
     title: "Remote Registry service: Disabled"
     category: "System Settings"
     subcategory: "Services"
     severity: high
-    levels: ["basic", "moderate", "strict"]
+    levels: ["basic","moderate","strict"]
     tags: ["services"]
     check:
       kind: powershell

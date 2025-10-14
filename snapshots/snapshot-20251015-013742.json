@@ -1,0 +1,157 @@
+[
+  {
+    "policy_id": "WIN-1.a.i",
+    "title": "Enforce password history: 24 or more passwords",
+    "kind": "powershell",
+    "raw": "",
+    "stderr": "At C:\\Users\\amans\\AppData\\Local\\Temp\\policy-985111499.ps1:1 char:419\r\n+ ...  1).ToString(); $v=($l -match '(\\d+)\\s*$')?[int]$Matches[1]:0; [pscus ...\r\n+                                               ~~~~~~~~~~~~~~~~~~~\r\nUnexpected token '?[int]$Matches[1]:0' in expression or statement.\r\n    + CategoryInfo          : ParserError: (:) [], ParentContainsErrorRecordException\r\n    + FullyQualifiedErrorId : UnexpectedToken\r\n \r\n",
+    "error": "exit status 1"
+  },
+  {
+    "policy_id": "WIN-1.a.ii",
+    "title": "Maximum password age: 90 days or fewer, not 0",
+    "kind": "powershell",
+    "raw": "",
+    "stderr": "At C:\\Users\\amans\\AppData\\Local\\Temp\\policy-2266600878.ps1:1 char:395\r\n+ ... ).ToString(); $v=($l -match '(-?\\d+)\\s*$')?[int]$Matches[1]:0; [pscus ...\r\n+                                               ~~~~~~~~~~~~~~~~~~~\r\nUnexpected token '?[int]$Matches[1]:0' in expression or statement.\r\n    + CategoryInfo          : ParserError: (:) [], ParentContainsErrorRecordException\r\n    + FullyQualifiedErrorId : UnexpectedToken\r\n \r\n",
+    "error": "exit status 1"
+  },
+  {
+    "policy_id": "WIN-1.a.iii",
+    "title": "Minimum password age: 1 day or more",
+    "kind": "powershell",
+    "raw": "",
+    "stderr": "At C:\\Users\\amans\\AppData\\Local\\Temp\\policy-358588322.ps1:1 char:391\r\n+ ...  1).ToString(); $v=($l -match '(\\d+)\\s*$')?[int]$Matches[1]:0; [pscus ...\r\n+                                               ~~~~~~~~~~~~~~~~~~~\r\nUnexpected token '?[int]$Matches[1]:0' in expression or statement.\r\n    + CategoryInfo          : ParserError: (:) [], ParentContainsErrorRecordException\r\n    + FullyQualifiedErrorId : UnexpectedToken\r\n \r\n",
+    "error": "exit status 1"
+  },
+  {
+    "policy_id": "WIN-1.a.iv",
+    "title": "Minimum password length: 12+ characters",
+    "kind": "powershell",
+    "raw": "",
+    "stderr": "At C:\\Users\\amans\\AppData\\Local\\Temp\\policy-4091795269.ps1:1 char:400\r\n+ ...  1).ToString(); $v=($l -match '(\\d+)\\s*$')?[int]$Matches[1]:0; [pscus ...\r\n+                                               ~~~~~~~~~~~~~~~~~~~\r\nUnexpected token '?[int]$Matches[1]:0' in expression or statement.\r\n    + CategoryInfo          : ParserError: (:) [], ParentContainsErrorRecordException\r\n    + FullyQualifiedErrorId : UnexpectedToken\r\n \r\n",
+    "error": "exit status 1"
+  },
+  {
+    "policy_id": "WIN-1.a.v",
+    "title": "Password must meet complexity requirements: Enabled",
+    "kind": "powershell",
+    "raw": "{\"PasswordComplexity\":1}\r\n",
+    "parsed": {
+      "PasswordComplexity": 1
+    }
+  },
+  {
+    "policy_id": "WIN-1.a.vi",
+    "title": "Store passwords using reversible encryption: Disabled",
+    "kind": "powershell",
+    "raw": "{\"ClearTextPassword\":0}\r\n",
+    "parsed": {
+      "ClearTextPassword": 0
+    }
+  },
+  {
+    "policy_id": "WIN-1.b.i",
+    "title": "Account lockout duration: 15+ minutes",
+    "kind": "powershell",
+    "raw": "",
+    "stderr": "At C:\\Users\\amans\\AppData\\Local\\Temp\\policy-3537618003.ps1:1 char:381\r\n+ ...  1).ToString(); $v=($l -match '(\\d+)\\s*$')?[int]$Matches[1]:0; [pscus ...\r\n+                                               ~~~~~~~~~~~~~~~~~~~\r\nUnexpected token '?[int]$Matches[1]:0' in expression or statement.\r\n    + CategoryInfo          : ParserError: (:) [], ParentContainsErrorRecordException\r\n    + FullyQualifiedErrorId : UnexpectedToken\r\n \r\n",
+    "error": "exit status 1"
+  },
+  {
+    "policy_id": "WIN-1.b.ii",
+    "title": "Account lockout threshold: 5 or fewer and not 0",
+    "kind": "powershell",
+    "raw": "",
+    "stderr": "At C:\\Users\\amans\\AppData\\Local\\Temp\\policy-900043289.ps1:1 char:382\r\n+ ...  1).ToString(); $v=($l -match '(\\d+)\\s*$')?[int]$Matches[1]:0; [pscus ...\r\n+                                               ~~~~~~~~~~~~~~~~~~~\r\nUnexpected token '?[int]$Matches[1]:0' in expression or statement.\r\n    + CategoryInfo          : ParserError: (:) [], ParentContainsErrorRecordException\r\n    + FullyQualifiedErrorId : UnexpectedToken\r\n \r\n",
+    "error": "exit status 1"
+  },
+  {
+    "policy_id": "WIN-1.b.iii",
+    "title": "Allow Administrator account lockout: Enabled (Manual)",
+    "kind": "manual",
+    "raw": "",
+    "error": "unsupported script kind: manual"
+  },
+  {
+    "policy_id": "WIN-3.b.i",
+    "title": "Interactive logon: Do not require CTRL+ALT+DEL: Disabled (require CAD)",
+    "kind": "powershell",
+    "raw": "{\"DisableCAD\":1}\r\n",
+    "parsed": {
+      "DisableCAD": 1
+    }
+  },
+  {
+    "policy_id": "WIN-3.b.ii",
+    "title": "Interactive logon: Don't display last signed in: Enabled",
+    "kind": "powershell",
+    "raw": "{\"DontDisplayLastUserName\":0}\r\n",
+    "parsed": {
+      "DontDisplayLastUserName": 0
+    }
+  },
+  {
+    "policy_id": "WIN-3.d.iv",
+    "title": "Minimum session security for NTLM SSP clients: Require NTLMv2 + 128-bit",
+    "kind": "powershell",
+    "raw": "{\"NTLMMinClientSec\":536870912}\r\n",
+    "parsed": {
+      "NTLMMinClientSec": 536870912
+    }
+  },
+  {
+    "policy_id": "WIN-3.d.v",
+    "title": "Minimum session security for NTLM SSP servers: Require NTLMv2 + 128-bit",
+    "kind": "powershell",
+    "raw": "{\"NTLMMinServerSec\":536870912}\r\n",
+    "parsed": {
+      "NTLMMinServerSec": 536870912
+    }
+  },
+  {
+    "policy_id": "WIN-3.d.i",
+    "title": "Kerberos allowed encryption types: AES128, AES256, Future",
+    "kind": "powershell",
+    "raw": "{\"SupportedEncryptionTypes\":0}\r\n",
+    "parsed": {
+      "SupportedEncryptionTypes": 0
+    }
+  },
+  {
+    "policy_id": "WIN-5.a.i",
+    "title": "Firewall Private profile: state ON",
+    "kind": "powershell",
+    "raw": "",
+    "stderr": "At C:\\Users\\amans\\AppData\\Local\\Temp\\policy-2588092118.ps1:1 char:132\r\n+ ... e\\s*:\\s*(\\w+)'); $v=($m.Success)?$m.Groups[1].Value:'unknown'; [pscus ...\r\n+                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\nUnexpected token '?$m.Groups[1].Value:'unknown'' in expression or statement.\r\n    + CategoryInfo          : ParserError: (:) [], ParentContainsErrorRecordException\r\n    + FullyQualifiedErrorId : UnexpectedToken\r\n \r\n",
+    "error": "exit status 1"
+  },
+  {
+    "policy_id": "WIN-5.b.i",
+    "title": "Firewall Public profile: state ON",
+    "kind": "powershell",
+    "raw": "",
+    "stderr": "At C:\\Users\\amans\\AppData\\Local\\Temp\\policy-3744169692.ps1:1 char:131\r\n+ ... e\\s*:\\s*(\\w+)'); $v=($m.Success)?$m.Groups[1].Value:'unknown'; [pscus ...\r\n+                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\nUnexpected token '?$m.Groups[1].Value:'unknown'' in expression or statement.\r\n    + CategoryInfo          : ParserError: (:) [], ParentContainsErrorRecordException\r\n    + FullyQualifiedErrorId : UnexpectedToken\r\n \r\n",
+    "error": "exit status 1"
+  },
+  {
+    "policy_id": "WIN-6.a.i",
+    "title": "Audit Credential Validation: Success and Failure",
+    "kind": "powershell",
+    "raw": "{\"AuditSub\":\"Credential Validation\",\"Raw\":\"Machine Name,Policy Target,Subcategory,Subcategory GUID,Inclusion Setting,Exclusion Setting\\r\\n\\r\\nWINDOWS,System,Credential Validation,{0CCE923F-69AE-11D9-BED3-505054503030},No Auditing,\\r\\n\\r\\n\"}\r\n",
+    "parsed": {
+      "AuditSub": "Credential Validation",
+      "Raw": "Machine Name,Policy Target,Subcategory,Subcategory GUID,Inclusion Setting,Exclusion Setting\r\n\r\nWINDOWS,System,Credential Validation,{0CCE923F-69AE-11D9-BED3-505054503030},No Auditing,\r\n\r\n"
+    }
+  },
+  {
+    "policy_id": "WIN-4.b.x",
+    "title": "Remote Registry service: Disabled",
+    "kind": "powershell",
+    "raw": "{\"Service\":\"RemoteRegistry\",\"Present\":true,\"StartMode\":\"Disabled\"}\r\n",
+    "parsed": {
+      "Present": true,
+      "Service": "RemoteRegistry",
+      "StartMode": "Disabled"
+    }
+  }
+]

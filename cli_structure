@@ -1,1 +1,1 @@
-cli --action(audit,snapshot,further{hardening}) --path(path_to_policies) --output(output_path) --format(json,text) --verbose(true,false)
+cli --action(audit,snapshot,further{hardening}) --path(path_to_policies) --output(output_path) --format(json,text) --verbose(true,false) --modularity(basic,moderate,strict)
